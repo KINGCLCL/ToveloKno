@@ -1,0 +1,52 @@
+flowchart TD
+    A[Current Status] --> A1[Database tables created]
+    A --> A2[Backend layered structure organized]
+    A --> A3[User register/login completed]
+    A --> A4[Chinese encoding fixed]
+
+    A --> B[Next: complete user module]
+
+    B --> B1[Get user profile API]
+    B --> B2[Update email/avatar API]
+    B --> B3[Change password API]
+    B --> B4[Improve global error handling]
+
+    B1 --> C[Test user module]
+    B2 --> C
+    B3 --> C
+    B4 --> C
+
+    C --> C1[Run mvnw test]
+    C --> C2[Test register/login/profile APIs]
+    C --> C3[Check database data]
+
+    C --> D[Resource management module]
+
+    D --> D1[Create Resource entity]
+    D --> D2[Create ResourceRepository]
+    D --> D3[Create ResourceService]
+    D --> D4[Create ResourceController]
+    D --> D5[Implement resource CRUD]
+
+    D5 --> E[Category and tag module]
+    E --> E1[Category CRUD]
+    E --> E2[Tag CRUD]
+    E --> E3[Bind resources with category and tags]
+
+    E --> F[Initialize Vue3 frontend]
+    F --> F1[Login page]
+    F --> F2[Register page]
+    F --> F3[Dashboard layout]
+    F --> F4[Resource management page]
+
+    F --> G[Frontend/backend integration]
+    G --> G1[Register/login integration]
+    G --> G2[Resource CRUD integration]
+    G --> G3[Fix API and page issues]
+
+    G --> H[Feature expansion]
+    H --> H1[Knowledge cards]
+    H --> H2[Question practice]
+    H --> H3[Wrong question book]
+    H --> H4[Study plans]
+    H --> H5[Statistics and AI demo]

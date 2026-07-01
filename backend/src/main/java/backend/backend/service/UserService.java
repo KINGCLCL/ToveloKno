@@ -1,7 +1,9 @@
 package backend.backend.service;
 
+import backend.backend.dto.ChangePasswordRequest;
 import backend.backend.dto.LoginRequest;
 import backend.backend.dto.RegisterRequest;
+import backend.backend.dto.UpdateUserProfileRequest;
 import backend.backend.dto.UserResponse;
 import backend.backend.entity.Role;
 import backend.backend.entity.User;
@@ -90,12 +92,73 @@ public class UserService {
         return toResponse(user);
     }
 
+    /**
+     * 查询用户基础信息。
+     *
+     * 当前通过 userId 查询，后面接入登录状态后可以改为查询“当前登录用户”。
+     */
+    public UserResponse getUserProfile(Long userId) {
+        User user = findUserById(userId);
+        return toResponse(user);
+    }
+
+    /**
+     * 修改用户资料。
+     *
+     * 这里先支持邮箱和头像，用户名暂时不开放修改，避免影响登录身份。
+     */
+    @Transactional
+    public UserResponse updateProfile(Long userId, UpdateUserProfileRequest request) {
+        User user = findUserById(userId);
+        String email = normalizeEmail(request.getEmail());
+
+        // 邮箱如果被其他用户使用，就不能保存。
+        if (email != null && userRepository.existsByEmailAndIdNot(email, userId)) {
+            throw new IllegalArgumentException("邮箱已被使用");
+        }
+
+        user.setEmail(email);
+        user.setAvatar(normalizeText(request.getAvatar()));
+
+        return toResponse(userRepository.save(user));
+    }
+
+    /**
+     * 修改密码。
+     *
+     * 先校验旧密码，再保存新密码的加密结果。
+     */
+    @Transactional
+    public void changePassword(Long userId, ChangePasswordRequest request) {
+        User user = findUserById(userId);
+
+        if (!passwordEncoder.matches(request.getOldPassword(), user.getPassword())) {
+            throw new IllegalArgumentException("旧密码错误");
+        }
+
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
+    }
+
+    private User findUserById(Long userId) {
+        return userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("用户不存在"));
+    }
+
     // 把空字符串邮箱统一处理成 null，避免数据库里出现没有意义的空值。
     private String normalizeEmail(String email) {
         if (email == null || email.trim().isEmpty()) {
             return null;
         }
         return email.trim();
+    }
+
+    // 把空字符串统一处理成 null，适合头像这类可选字段。
+    private String normalizeText(String text) {
+        if (text == null || text.trim().isEmpty()) {
+            return null;
+        }
+        return text.trim();
     }
 
     // 把 Entity 转成 Response，控制哪些字段可以返回给前端。
