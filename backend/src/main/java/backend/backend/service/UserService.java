@@ -1,7 +1,11 @@
 package backend.backend.service;
 
+import backend.backend.auth.AuthTokenService;
+import backend.backend.auth.AuthenticatedUser;
+import backend.backend.common.ForbiddenException;
 import backend.backend.dto.ChangePasswordRequest;
 import backend.backend.dto.LoginRequest;
+import backend.backend.dto.LoginResponse;
 import backend.backend.dto.RegisterRequest;
 import backend.backend.dto.UpdateUserProfileRequest;
 import backend.backend.dto.UserResponse;
@@ -16,103 +20,112 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 
 /**
- * 用户业务层。
+ * 用户模块业务层。
  *
- * Controller 只负责接收请求，真正的注册、登录规则都放在 Service 中，
- * 这样后面无论是网页端还是移动端调用，都能复用同一套业务逻辑。
+ * Controller 只负责接收请求和返回响应；注册、登录、权限校验、密码加密、
+ * 操作日志记录等规则都放在 Service 中，便于后续复用和测试。
  */
 @Service
 public class UserService {
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
-
-    // BCrypt 会自动加盐，比直接保存明文密码安全很多。
+    private final AuthTokenService authTokenService;
+    private final OperationLogService operationLogService;
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
-    public UserService(UserRepository userRepository, RoleRepository roleRepository) {
+    public UserService(
+            UserRepository userRepository,
+            RoleRepository roleRepository,
+            AuthTokenService authTokenService,
+            OperationLogService operationLogService) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
+        this.authTokenService = authTokenService;
+        this.operationLogService = operationLogService;
     }
 
     /**
-     * 注册用户。
+     * 注册普通用户。
      *
-     * 主要步骤：清理输入、检查重复、加密密码、绑定默认 USER 角色、保存数据库。
+     * 主要步骤：清洗输入、检查用户名/邮箱重复、加密密码、绑定默认 USER 角色、记录操作日志。
      */
     @Transactional
     public UserResponse register(RegisterRequest request) {
         String username = request.getUsername().trim();
         String email = normalizeEmail(request.getEmail());
 
-        // 用户名必须唯一，否则登录时无法确定是哪一个用户。
         if (userRepository.existsByUsername(username)) {
             throw new IllegalArgumentException("用户名已存在");
         }
 
-        // 邮箱允许为空；如果填写了，也要求不能重复。
         if (email != null && userRepository.existsByEmail(email)) {
             throw new IllegalArgumentException("邮箱已被使用");
         }
 
-        // 默认角色来自数据库初始化脚本，缺失时说明数据库还没有准备好。
         Role userRole = roleRepository.findByRoleName("USER")
                 .orElseThrow(() -> new IllegalStateException("默认用户角色不存在，请先执行数据库初始化脚本"));
 
         User user = new User();
         user.setUsername(username);
-        // 密码入库前必须加密，登录时再用 matches 进行校验。
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setEmail(email);
         user.getRoles().add(userRole);
 
-        return toResponse(userRepository.save(user));
+        User savedUser = userRepository.save(user);
+        operationLogService.record(savedUser.getId(), "USER_REGISTER", "用户注册：" + savedUser.getUsername());
+        return toResponse(savedUser);
     }
 
     /**
      * 用户登录。
      *
-     * 这里先做最小登录闭环：校验用户名、密码和账号状态。
-     * 后面如果加入 JWT 或 Session，可以在这里生成登录凭证。
+     * 校验用户名、密码和账号状态，通过后生成 token 并记录登录日志。
      */
-    public UserResponse login(LoginRequest request) {
+    public LoginResponse login(LoginRequest request) {
         User user = userRepository.findByUsername(request.getUsername().trim())
                 .orElseThrow(() -> new IllegalArgumentException("用户名或密码错误"));
 
-        // BCrypt 的 matches 会把明文密码和数据库中的加密密码进行安全比较。
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             throw new IllegalArgumentException("用户名或密码错误");
         }
 
-        // 管理员禁用账号后，用户不能继续登录。
         if (user.getStatus() == 0) {
             throw new IllegalArgumentException("账号已被禁用");
         }
 
-        return toResponse(user);
+        operationLogService.record(user.getId(), "USER_LOGIN", "用户登录：" + user.getUsername());
+        return new LoginResponse(authTokenService.createToken(user), "Bearer", toResponse(user));
     }
 
     /**
-     * 查询用户基础信息。
+     * 查询指定用户资料。
      *
-     * 当前通过 userId 查询，后面接入登录状态后可以改为查询“当前登录用户”。
+     * 普通用户只能查自己，管理员可以查任意用户。
      */
-    public UserResponse getUserProfile(Long userId) {
-        User user = findUserById(userId);
-        return toResponse(user);
+    public UserResponse getUserProfile(Long userId, AuthenticatedUser currentUser) {
+        ensureSelfOrAdmin(userId, currentUser);
+        return toResponse(findUserById(userId));
     }
 
     /**
-     * 修改用户资料。
+     * 查询当前登录用户资料。
+     */
+    public UserResponse getCurrentUserProfile(AuthenticatedUser currentUser) {
+        return toResponse(findUserById(currentUser.getId()));
+    }
+
+    /**
+     * 修改指定用户资料。
      *
-     * 这里先支持邮箱和头像，用户名暂时不开放修改，避免影响登录身份。
+     * 当前只开放邮箱和头像修改；用户名仍作为登录身份，不在这里改。
      */
     @Transactional
-    public UserResponse updateProfile(Long userId, UpdateUserProfileRequest request) {
+    public UserResponse updateProfile(Long userId, UpdateUserProfileRequest request, AuthenticatedUser currentUser) {
+        ensureSelfOrAdmin(userId, currentUser);
         User user = findUserById(userId);
         String email = normalizeEmail(request.getEmail());
 
-        // 邮箱如果被其他用户使用，就不能保存。
         if (email != null && userRepository.existsByEmailAndIdNot(email, userId)) {
             throw new IllegalArgumentException("邮箱已被使用");
         }
@@ -120,16 +133,26 @@ public class UserService {
         user.setEmail(email);
         user.setAvatar(normalizeText(request.getAvatar()));
 
+        operationLogService.record(currentUser.getId(), "USER_UPDATE_PROFILE", "修改用户资料：" + user.getUsername());
         return toResponse(userRepository.save(user));
     }
 
     /**
-     * 修改密码。
-     *
-     * 先校验旧密码，再保存新密码的加密结果。
+     * 修改当前登录用户资料。
      */
     @Transactional
-    public void changePassword(Long userId, ChangePasswordRequest request) {
+    public UserResponse updateCurrentUserProfile(AuthenticatedUser currentUser, UpdateUserProfileRequest request) {
+        return updateProfile(currentUser.getId(), request, currentUser);
+    }
+
+    /**
+     * 修改指定用户密码。
+     *
+     * 先校验旧密码，再保存新密码的 BCrypt 加密结果。
+     */
+    @Transactional
+    public void changePassword(Long userId, ChangePasswordRequest request, AuthenticatedUser currentUser) {
+        ensureSelfOrAdmin(userId, currentUser);
         User user = findUserById(userId);
 
         if (!passwordEncoder.matches(request.getOldPassword(), user.getPassword())) {
@@ -138,31 +161,32 @@ public class UserService {
 
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
         userRepository.save(user);
+        operationLogService.record(currentUser.getId(), "USER_CHANGE_PASSWORD", "修改密码：" + user.getUsername());
     }
 
-    private User findUserById(Long userId) {
-        return userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("用户不存在"));
+    /**
+     * 修改当前登录用户密码。
+     */
+    @Transactional
+    public void changeCurrentUserPassword(AuthenticatedUser currentUser, ChangePasswordRequest request) {
+        changePassword(currentUser.getId(), request, currentUser);
     }
 
-    // 把空字符串邮箱统一处理成 null，避免数据库里出现没有意义的空值。
-    private String normalizeEmail(String email) {
-        if (email == null || email.trim().isEmpty()) {
-            return null;
-        }
-        return email.trim();
+    /**
+     * 给其他业务 Service 复用的用户实体查询方法。
+     *
+     * 例如学习计划、错题本模块需要校验 user_id 是否存在时，可以调用它。
+     */
+    public User findUserEntityById(Long userId) {
+        return findUserById(userId);
     }
 
-    // 把空字符串统一处理成 null，适合头像这类可选字段。
-    private String normalizeText(String text) {
-        if (text == null || text.trim().isEmpty()) {
-            return null;
-        }
-        return text.trim();
-    }
-
-    // 把 Entity 转成 Response，控制哪些字段可以返回给前端。
-    private UserResponse toResponse(User user) {
+    /**
+     * 将 User 实体转换成安全的响应对象。
+     *
+     * 注意：这里不会返回 password 字段。
+     */
+    public UserResponse toResponse(User user) {
         List<String> roles = user.getRoles().stream()
                 .map(Role::getRoleName)
                 .sorted()
@@ -177,5 +201,34 @@ public class UserService {
                 roles,
                 user.getCreatedAt()
         );
+    }
+
+    // 限制普通用户只能操作自己的数据；管理员角色可以操作其他用户数据。
+    private void ensureSelfOrAdmin(Long targetUserId, AuthenticatedUser currentUser) {
+        if (!currentUser.getId().equals(targetUserId) && !currentUser.hasRole("ADMIN")) {
+            throw new ForbiddenException("只能操作自己的数据");
+        }
+    }
+
+    // 统一封装用户不存在时的错误提示。
+    private User findUserById(Long userId) {
+        return userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("用户不存在"));
+    }
+
+    // 把空邮箱统一处理成 null，避免数据库里出现没有意义的空字符串。
+    private String normalizeEmail(String email) {
+        if (email == null || email.trim().isEmpty()) {
+            return null;
+        }
+        return email.trim();
+    }
+
+    // 把可选文本字段里的空字符串统一处理成 null。
+    private String normalizeText(String text) {
+        if (text == null || text.trim().isEmpty()) {
+            return null;
+        }
+        return text.trim();
     }
 }

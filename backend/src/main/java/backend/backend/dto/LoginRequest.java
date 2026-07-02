@@ -5,7 +5,7 @@ import jakarta.validation.constraints.NotBlank;
 /**
  * 登录请求对象。
  *
- * 只接收用户名和密码，不直接接收角色、状态等敏感字段。
+ * 只接收用户名和密码，不接收角色、状态等敏感字段。
  */
 public class LoginRequest {
 
