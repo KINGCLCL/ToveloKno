@@ -1,16 +1,17 @@
 package backend.backend.controller;
 
-import backend.backend.dto.ChangePasswordRequest;
+import backend.backend.auth.AuthenticatedUser;
+import backend.backend.auth.CurrentUser;
 import backend.backend.common.ApiResponse;
+import backend.backend.dto.ChangePasswordRequest;
 import backend.backend.dto.LoginRequest;
+import backend.backend.dto.LoginResponse;
 import backend.backend.dto.RegisterRequest;
 import backend.backend.dto.UpdateUserProfileRequest;
 import backend.backend.dto.UserResponse;
 import backend.backend.service.UserService;
 import jakarta.validation.Valid;
-import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -18,11 +19,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/**
- * 用户接口控制器。
- *
- * Controller 是前端访问后端的入口，这里定义注册、登录等 HTTP 接口。
- */
 @RestController
 @RequestMapping("/api/users")
 public class UserController {
@@ -33,51 +29,57 @@ public class UserController {
         this.userService = userService;
     }
 
-    // 注册接口：前端 POST /api/users/register，并提交 username、password、email。
     @PostMapping("/register")
     public ApiResponse<UserResponse> register(@Valid @RequestBody RegisterRequest request) {
         return ApiResponse.success("注册成功", userService.register(request));
     }
 
-    // 登录接口：前端 POST /api/users/login，并提交 username、password。
     @PostMapping("/login")
-    public ApiResponse<UserResponse> login(@Valid @RequestBody LoginRequest request) {
+    public ApiResponse<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
         return ApiResponse.success("登录成功", userService.login(request));
     }
 
-    // 查询用户信息：当前用 userId 测试，后面接入登录状态后可以改成 /me。
-    @GetMapping("/{userId}")
-    public ApiResponse<UserResponse> getUserProfile(@PathVariable Long userId) {
-        return ApiResponse.success("查询成功", userService.getUserProfile(userId));
+    @GetMapping("/me")
+    public ApiResponse<UserResponse> getCurrentUserProfile(@CurrentUser AuthenticatedUser currentUser) {
+        return ApiResponse.success("查询成功", userService.getCurrentUserProfile(currentUser));
     }
 
-    // 修改用户资料：支持修改邮箱和头像。
-    @PutMapping("/{userId}/profile")
-    public ApiResponse<UserResponse> updateProfile(
-            @PathVariable Long userId,
+    @PutMapping("/me/profile")
+    public ApiResponse<UserResponse> updateCurrentUserProfile(
+            @CurrentUser AuthenticatedUser currentUser,
             @Valid @RequestBody UpdateUserProfileRequest request) {
-        return ApiResponse.success("修改成功", userService.updateProfile(userId, request));
+        return ApiResponse.success("修改成功", userService.updateCurrentUserProfile(currentUser, request));
     }
 
-    // 修改密码：需要旧密码验证通过后，才能保存新密码。
-    @PutMapping("/{userId}/password")
-    public ApiResponse<Void> changePassword(
-            @PathVariable Long userId,
+    @PutMapping("/me/password")
+    public ApiResponse<Void> changeCurrentUserPassword(
+            @CurrentUser AuthenticatedUser currentUser,
             @Valid @RequestBody ChangePasswordRequest request) {
-        userService.changePassword(userId, request);
+        userService.changeCurrentUserPassword(currentUser, request);
         return ApiResponse.success("密码修改成功", null);
     }
 
-    // 处理业务异常，例如用户名重复、密码错误、账号禁用。
-    @ExceptionHandler(IllegalArgumentException.class)
-    public ApiResponse<Void> handleBusinessError(IllegalArgumentException exception) {
-        return ApiResponse.fail(exception.getMessage());
+    @GetMapping("/{userId}")
+    public ApiResponse<UserResponse> getUserProfile(
+            @PathVariable Long userId,
+            @CurrentUser AuthenticatedUser currentUser) {
+        return ApiResponse.success("查询成功", userService.getUserProfile(userId, currentUser));
     }
 
-    // 处理参数校验异常，例如用户名为空、密码长度不够。
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ApiResponse<Void> handleValidationError(MethodArgumentNotValidException exception) {
-        String message = exception.getBindingResult().getFieldErrors().get(0).getDefaultMessage();
-        return ApiResponse.fail(message);
+    @PutMapping("/{userId}/profile")
+    public ApiResponse<UserResponse> updateProfile(
+            @PathVariable Long userId,
+            @CurrentUser AuthenticatedUser currentUser,
+            @Valid @RequestBody UpdateUserProfileRequest request) {
+        return ApiResponse.success("修改成功", userService.updateProfile(userId, request, currentUser));
+    }
+
+    @PutMapping("/{userId}/password")
+    public ApiResponse<Void> changePassword(
+            @PathVariable Long userId,
+            @CurrentUser AuthenticatedUser currentUser,
+            @Valid @RequestBody ChangePasswordRequest request) {
+        userService.changePassword(userId, request, currentUser);
+        return ApiResponse.success("密码修改成功", null);
     }
 }
