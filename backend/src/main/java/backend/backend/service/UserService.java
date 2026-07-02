@@ -19,6 +19,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
+/**
+ * 用户模块业务层。
+ *
+ * Controller 只负责接收请求和返回响应；注册、登录、权限校验、密码加密、
+ * 操作日志记录等规则都放在 Service 中，便于后续复用和测试。
+ */
 @Service
 public class UserService {
 
@@ -39,6 +45,11 @@ public class UserService {
         this.operationLogService = operationLogService;
     }
 
+    /**
+     * 注册普通用户。
+     *
+     * 主要步骤：清洗输入、检查用户名/邮箱重复、加密密码、绑定默认 USER 角色、记录操作日志。
+     */
     @Transactional
     public UserResponse register(RegisterRequest request) {
         String username = request.getUsername().trim();
@@ -66,6 +77,11 @@ public class UserService {
         return toResponse(savedUser);
     }
 
+    /**
+     * 用户登录。
+     *
+     * 校验用户名、密码和账号状态，通过后生成 token 并记录登录日志。
+     */
     public LoginResponse login(LoginRequest request) {
         User user = userRepository.findByUsername(request.getUsername().trim())
                 .orElseThrow(() -> new IllegalArgumentException("用户名或密码错误"));
@@ -82,15 +98,28 @@ public class UserService {
         return new LoginResponse(authTokenService.createToken(user), "Bearer", toResponse(user));
     }
 
+    /**
+     * 查询指定用户资料。
+     *
+     * 普通用户只能查自己，管理员可以查任意用户。
+     */
     public UserResponse getUserProfile(Long userId, AuthenticatedUser currentUser) {
         ensureSelfOrAdmin(userId, currentUser);
         return toResponse(findUserById(userId));
     }
 
+    /**
+     * 查询当前登录用户资料。
+     */
     public UserResponse getCurrentUserProfile(AuthenticatedUser currentUser) {
         return toResponse(findUserById(currentUser.getId()));
     }
 
+    /**
+     * 修改指定用户资料。
+     *
+     * 当前只开放邮箱和头像修改；用户名仍作为登录身份，不在这里改。
+     */
     @Transactional
     public UserResponse updateProfile(Long userId, UpdateUserProfileRequest request, AuthenticatedUser currentUser) {
         ensureSelfOrAdmin(userId, currentUser);
@@ -108,11 +137,19 @@ public class UserService {
         return toResponse(userRepository.save(user));
     }
 
+    /**
+     * 修改当前登录用户资料。
+     */
     @Transactional
     public UserResponse updateCurrentUserProfile(AuthenticatedUser currentUser, UpdateUserProfileRequest request) {
         return updateProfile(currentUser.getId(), request, currentUser);
     }
 
+    /**
+     * 修改指定用户密码。
+     *
+     * 先校验旧密码，再保存新密码的 BCrypt 加密结果。
+     */
     @Transactional
     public void changePassword(Long userId, ChangePasswordRequest request, AuthenticatedUser currentUser) {
         ensureSelfOrAdmin(userId, currentUser);
@@ -127,15 +164,28 @@ public class UserService {
         operationLogService.record(currentUser.getId(), "USER_CHANGE_PASSWORD", "修改密码：" + user.getUsername());
     }
 
+    /**
+     * 修改当前登录用户密码。
+     */
     @Transactional
     public void changeCurrentUserPassword(AuthenticatedUser currentUser, ChangePasswordRequest request) {
         changePassword(currentUser.getId(), request, currentUser);
     }
 
+    /**
+     * 给其他业务 Service 复用的用户实体查询方法。
+     *
+     * 例如学习计划、错题本模块需要校验 user_id 是否存在时，可以调用它。
+     */
     public User findUserEntityById(Long userId) {
         return findUserById(userId);
     }
 
+    /**
+     * 将 User 实体转换成安全的响应对象。
+     *
+     * 注意：这里不会返回 password 字段。
+     */
     public UserResponse toResponse(User user) {
         List<String> roles = user.getRoles().stream()
                 .map(Role::getRoleName)
@@ -153,17 +203,20 @@ public class UserService {
         );
     }
 
+    // 限制普通用户只能操作自己的数据；管理员角色可以操作其他用户数据。
     private void ensureSelfOrAdmin(Long targetUserId, AuthenticatedUser currentUser) {
         if (!currentUser.getId().equals(targetUserId) && !currentUser.hasRole("ADMIN")) {
             throw new ForbiddenException("只能操作自己的数据");
         }
     }
 
+    // 统一封装用户不存在时的错误提示。
     private User findUserById(Long userId) {
         return userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("用户不存在"));
     }
 
+    // 把空邮箱统一处理成 null，避免数据库里出现没有意义的空字符串。
     private String normalizeEmail(String email) {
         if (email == null || email.trim().isEmpty()) {
             return null;
@@ -171,6 +224,7 @@ public class UserService {
         return email.trim();
     }
 
+    // 把可选文本字段里的空字符串统一处理成 null。
     private String normalizeText(String text) {
         if (text == null || text.trim().isEmpty()) {
             return null;
