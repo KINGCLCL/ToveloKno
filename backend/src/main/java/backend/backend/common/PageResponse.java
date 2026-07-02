@@ -4,6 +4,12 @@ import org.springframework.data.domain.Page;
 
 import java.util.List;
 
+/**
+ * 分页接口统一返回结构。
+ *
+ * 业务模块使用 Spring Data JPA 查询出 Page<T> 后，可以用 PageResponse.from(pageData)
+ * 转成前端更容易消费的 records、total、page、size、totalPages 格式。
+ */
 public class PageResponse<T> {
 
     private List<T> records;
@@ -23,6 +29,11 @@ public class PageResponse<T> {
         this.totalPages = totalPages;
     }
 
+    /**
+     * 将 Spring Data 的 Page 对象转成统一分页响应。
+     *
+     * 注意：前端页码从 1 开始展示，所以这里把 Page#getNumber() 的 0 基页码加 1。
+     */
     public static <T> PageResponse<T> from(Page<T> pageData) {
         return new PageResponse<>(
                 pageData.getContent(),
