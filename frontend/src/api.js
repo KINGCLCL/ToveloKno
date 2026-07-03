@@ -97,5 +97,55 @@ export function changePassword(userId, data) {
   return api.put(`/users/${userId}/password`, data)
 }
 
+// 查询分类列表，keyword 可选。
+export function listCategories(params = {}) {
+  return api.get('/categories', { params })
+}
+
+// 查询单个分类详情。
+export function getCategory(categoryId) {
+  return api.get(`/categories/${categoryId}`)
+}
+
+// 新增分类。
+export function createCategory(data) {
+  return api.post('/categories', data)
+}
+
+// 修改分类。
+export function updateCategory(categoryId, data) {
+  return api.put(`/categories/${categoryId}`, data)
+}
+
+// 删除分类。
+export function deleteCategory(categoryId) {
+  return api.delete(`/categories/${categoryId}`)
+}
+
+// 查询标签列表，keyword 可选。
+export function listTags(params = {}) {
+  return api.get('/tags', { params })
+}
+
+// 查询单个标签详情。
+export function getTag(tagId) {
+  return api.get(`/tags/${tagId}`)
+}
+
+// 新增标签。
+export function createTag(data) {
+  return api.post('/tags', data)
+}
+
+// 修改标签。
+export function updateTag(tagId, data) {
+  return api.put(`/tags/${tagId}`, data)
+}
+
+// 删除标签。
+export function deleteTag(tagId) {
+  return api.delete(`/tags/${tagId}`)
+}
+
 // 默认导出 axios 实例，后续题库、错题本、计划、统计模块可以直接复用。
 export default api

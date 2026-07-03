@@ -1,343 +1,392 @@
 <template>
-  <div class="app-page">
-    <aside class="left-sidebar ornamental-card">
-      <div class="logo-block">
-        <div class="hex-frame">
-          <div class="hex-core"></div>
+  <main class="app-shell">
+    <section v-if="!isLoggedIn" class="auth-layout">
+      <div class="brand-panel">
+        <p class="eyebrow">ToveloKno</p>
+        <h1>把学习资料、计划和复习节奏收回到自己手里。</h1>
+        <p class="brand-copy">
+          先完成登录闭环，后续资源、题库、错题本和统计模块都可以直接接入当前用户状态。
+        </p>
+
+        <div class="signal-grid">
+          <article>
+            <span>01</span>
+            <strong>统一身份</strong>
+            <p>登录后接口自动携带 token。</p>
+          </article>
+          <article>
+            <span>02</span>
+            <strong>个人主页</strong>
+            <p>展示账号信息和基础入口。</p>
+          </article>
+          <article>
+            <span>03</span>
+            <strong>模块承接</strong>
+            <p>给后续功能预留清晰位置。</p>
+          </article>
         </div>
-        <h1>Learner</h1>
-        <p>✦ 学习中 ✦</p>
       </div>
 
-      <nav class="menu-list">
-        <button
-          v-for="item in navItems"
-          :key="item.id"
-          type="button"
-          class="menu-item"
-          :class="{ active: activeNav === item.id }"
-          @click="activeNav = item.id"
-        >
-          <span class="menu-icon">{{ item.icon }}</span>
-          <span class="menu-label">{{ item.label }}</span>
-          <span class="menu-index">{{ item.index }}</span>
-        </button>
-      </nav>
-    </aside>
+      <section class="auth-card">
+        <div class="auth-tabs">
+          <button type="button" :class="{ active: authMode === 'login' }" @click="switchAuthMode('login')">
+            登录
+          </button>
+          <button type="button" :class="{ active: authMode === 'register' }" @click="switchAuthMode('register')">
+            注册
+          </button>
+        </div>
 
-    <main class="content-shell">
-      <section class="top-illustration">
-        <div class="illustration-copy"></div>
+        <form class="auth-form" @submit.prevent="submitAuth">
+          <label>
+            <span>用户名</span>
+            <input v-model.trim="authForm.username" type="text" autocomplete="username" placeholder="请输入用户名" />
+          </label>
+
+          <label>
+            <span>密码</span>
+            <input
+              v-model="authForm.password"
+              type="password"
+              :autocomplete="authMode === 'login' ? 'current-password' : 'new-password'"
+              placeholder="请输入密码"
+            />
+          </label>
+
+          <label v-if="authMode === 'register'">
+            <span>邮箱</span>
+            <input v-model.trim="authForm.email" type="email" autocomplete="email" placeholder="可选" />
+          </label>
+
+          <p v-if="message.text" class="message-line" :class="message.type">{{ message.text }}</p>
+
+          <button class="primary-action" type="submit" :disabled="loading">
+            {{ loading ? '处理中...' : authMode === 'login' ? '进入个人主页' : '创建账号' }}
+          </button>
+        </form>
       </section>
+    </section>
 
-      <section class="resource-panel ornamental-card">
-        <header class="resource-header">
-          <h2>资源列表</h2>
-
-          <div class="resource-toolbar">
-            <div class="category-tabs">
-              <button
-                v-for="tab in resourceTabs"
-                :key="tab"
-                type="button"
-                class="category-tab"
-                :class="{ active: activeTab === tab }"
-                @click="activeTab = tab"
-              >
-                {{ tab }}
-              </button>
-            </div>
-
-            <div class="toolbar-actions">
-              <label class="search-input">
-                <input v-model.trim="keyword" type="text" placeholder="搜索资源..." />
-                <span>⌕</span>
-              </label>
-
-              <button type="button" class="square-toggle" :class="{ active: viewMode === 'list' }" @click="viewMode = 'list'">
-                ☰
-              </button>
-              <button type="button" class="square-toggle" :class="{ active: viewMode === 'grid' }" @click="viewMode = 'grid'">
-                ⊞
-              </button>
-              <button type="button" class="upload-action">上传</button>
-            </div>
+    <section v-else class="home-layout">
+      <aside class="side-nav">
+        <div class="mini-brand">
+          <span>TK</span>
+          <div>
+            <strong>ToveloKno</strong>
+            <p>个人学习中心</p>
           </div>
-        </header>
+        </div>
 
-        <section v-if="viewMode === 'list'" class="table-wrap">
-          <div class="table-head">
-            <span>名称</span>
-            <span>类型</span>
-            <span>来源</span>
-            <span>修改时间 ↓</span>
-            <span>大小</span>
-            <span>操作</span>
-          </div>
-
+        <nav>
           <button
-            v-for="item in filteredResources"
+            v-for="item in navItems"
             :key="item.id"
             type="button"
-            class="table-row"
-            :class="{ active: selectedResource.id === item.id }"
-            @click="selectedResource = item"
+            :class="{ active: activePanel === item.id }"
+            @click="activePanel = item.id"
           >
-            <div class="name-cell">
-              <span class="asset-icon" :class="item.kind">{{ item.badge }}</span>
-              <span class="asset-name">{{ item.name }}</span>
-            </div>
-            <span>{{ item.type }}</span>
-            <span>{{ item.source }}</span>
-            <span>{{ item.updatedAt }}</span>
-            <span>{{ item.size }}</span>
-            <span class="more-action">···</span>
+            <span>{{ item.icon }}</span>
+            {{ item.label }}
           </button>
-        </section>
+        </nav>
 
-        <section v-else class="grid-wrap">
-          <button
-            v-for="item in filteredResources"
-            :key="item.id"
-            type="button"
-            class="grid-item"
-            :class="{ active: selectedResource.id === item.id }"
-            @click="selectedResource = item"
-          >
-            <span class="asset-icon large" :class="item.kind">{{ item.badge }}</span>
-            <strong>{{ item.name }}</strong>
-            <p>{{ item.type }} · {{ item.size }}</p>
-            <span>{{ item.updatedAt }}</span>
-          </button>
-        </section>
+        <button class="ghost-action" type="button" @click="handleLogout">退出登录</button>
+      </aside>
 
-        <footer class="table-footer">共 {{ filteredResources.length }} 项</footer>
-      </section>
-
-      <aside class="detail-panel ornamental-card">
-        <header class="detail-tabs">
-          <button
-            v-for="tab in detailTabs"
-            :key="tab"
-            type="button"
-            class="detail-tab"
-            :class="{ active: activeDetailTab === tab }"
-            @click="activeDetailTab = tab"
-          >
-            {{ tab }}
+      <section class="home-main">
+        <header class="home-header">
+          <div>
+            <p class="eyebrow">欢迎回来</p>
+            <h2>{{ currentUser?.username || '学习者' }}</h2>
+          </div>
+          <button class="refresh-action" type="button" :disabled="loading" @click="loadCurrentUser">
+            {{ loading ? '刷新中' : '刷新资料' }}
           </button>
         </header>
 
-        <section class="detail-section">
-          <div class="detail-top">
-            <span class="asset-icon large folder">📁</span>
+        <section v-if="activePanel === 'dashboard'" class="dashboard-grid">
+          <article class="profile-card">
+            <div class="avatar-badge">{{ userInitial }}</div>
             <div>
-              <h3>{{ selectedResource.name }}</h3>
-              <p>{{ selectedResource.group }}</p>
+              <p>当前账号</p>
+              <h3>{{ currentUser.username }}</h3>
+              <span>{{ currentUser.email || '暂未填写邮箱' }}</span>
             </div>
-            <span class="star-mark">☆</span>
-          </div>
+          </article>
 
-          <dl class="detail-meta">
-            <div>
-              <dt>位置</dt>
-              <dd>{{ selectedResource.path }}</dd>
-            </div>
-            <div>
-              <dt>创建时间</dt>
-              <dd>{{ selectedResource.createdAt }}</dd>
-            </div>
-            <div>
-              <dt>修改时间</dt>
-              <dd>{{ selectedResource.updatedAt }}</dd>
-            </div>
-            <div>
-              <dt>描述</dt>
-              <dd>{{ selectedResource.description }}</dd>
-            </div>
-          </dl>
+          <article v-for="item in overviewCards" :key="item.label" class="metric-card">
+            <span>{{ item.label }}</span>
+            <strong>{{ item.value }}</strong>
+            <p>{{ item.note }}</p>
+          </article>
         </section>
 
-        <section class="info-section">
-          <div class="section-head">
-            <h4>统计</h4>
-            <button type="button">更多 ›</button>
-          </div>
+        <section v-if="activePanel === 'profile'" class="panel-card">
+          <header>
+            <h3>个人资料</h3>
+            <p>这里先接入最基础的邮箱和头像地址修改。</p>
+          </header>
 
-          <div class="stats-grid">
-            <article v-for="stat in stats" :key="stat.label" class="stat-card">
-              <span>{{ stat.label }}</span>
-              <strong>{{ stat.value }}</strong>
+          <form class="settings-form" @submit.prevent="submitProfile">
+            <label>
+              <span>用户名</span>
+              <input :value="currentUser.username" type="text" disabled />
+            </label>
+
+            <label>
+              <span>邮箱</span>
+              <input v-model.trim="profileForm.email" type="email" placeholder="例如 user@example.com" />
+            </label>
+
+            <label>
+              <span>头像地址</span>
+              <input v-model.trim="profileForm.avatar" type="text" placeholder="图片 URL，可选" />
+            </label>
+
+            <button class="primary-action narrow" type="submit" :disabled="loading">
+              保存资料
+            </button>
+          </form>
+        </section>
+
+        <section v-if="activePanel === 'security'" class="panel-card">
+          <header>
+            <h3>账号安全</h3>
+            <p>修改密码后请使用新密码重新登录。</p>
+          </header>
+
+          <form class="settings-form" @submit.prevent="submitPassword">
+            <label>
+              <span>旧密码</span>
+              <input v-model="passwordForm.oldPassword" type="password" autocomplete="current-password" />
+            </label>
+
+            <label>
+              <span>新密码</span>
+              <input v-model="passwordForm.newPassword" type="password" autocomplete="new-password" />
+            </label>
+
+            <label>
+              <span>确认新密码</span>
+              <input v-model="passwordForm.confirmPassword" type="password" autocomplete="new-password" />
+            </label>
+
+            <button class="primary-action narrow" type="submit" :disabled="loading">
+              修改密码
+            </button>
+          </form>
+        </section>
+
+        <section v-if="activePanel === 'modules'" class="panel-card">
+          <header>
+            <h3>模块入口</h3>
+            <p>这里先放最基本入口，等组员模块完成后再替换成真实页面。</p>
+          </header>
+
+          <div class="module-list">
+            <article v-for="module in moduleCards" :key="module.title">
+              <span>{{ module.index }}</span>
+              <div>
+                <strong>{{ module.title }}</strong>
+                <p>{{ module.description }}</p>
+              </div>
             </article>
           </div>
         </section>
 
-        <section class="info-section">
-          <div class="section-head">
-            <h4>最近学习</h4>
-            <button type="button">更多 ›</button>
-          </div>
-
-          <div class="recent-list">
-            <div v-for="item in recentItems" :key="item.name" class="recent-row">
-              <span class="asset-icon small" :class="item.kind">{{ item.badge }}</span>
-              <div class="recent-copy">
-                <strong>{{ item.name }}</strong>
-                <span>{{ item.time }}</span>
-              </div>
-            </div>
-          </div>
-        </section>
-      </aside>
-    </main>
-  </div>
+        <p v-if="message.text" class="message-line floating" :class="message.type">{{ message.text }}</p>
+      </section>
+    </section>
+  </main>
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
+import {
+  changeCurrentUserPassword,
+  clearAuthToken,
+  getAuthToken,
+  getCurrentUserProfile,
+  loginUser,
+  registerUser,
+  updateCurrentUserProfile,
+} from './api'
+
+const authMode = ref('login')
+const activePanel = ref('dashboard')
+const currentUser = ref(null)
+const loading = ref(false)
+const message = reactive({ type: '', text: '' })
+
+const authForm = reactive({
+  username: '',
+  password: '',
+  email: '',
+})
+
+const profileForm = reactive({
+  email: '',
+  avatar: '',
+})
+
+const passwordForm = reactive({
+  oldPassword: '',
+  newPassword: '',
+  confirmPassword: '',
+})
 
 const navItems = [
-  { id: 'resource', label: '学习资料', index: '01', icon: '⌂' },
-  { id: 'card', label: '知识卡片', index: '02', icon: '▣' },
-  { id: 'exercise', label: '题前练习', index: '03', icon: '✎' },
-  { id: 'wrong', label: '错题本', index: '04', icon: '◈' },
-  { id: 'plan', label: '学习计划', index: '05', icon: '⌲' },
-  { id: 'stats', label: '统计', index: '06', icon: '◍' },
-  { id: 'setting', label: '设置', index: '07', icon: '⚙' },
+  { id: 'dashboard', label: '主页概览', icon: '⌂' },
+  { id: 'profile', label: '个人资料', icon: '◎' },
+  { id: 'security', label: '账号安全', icon: '◈' },
+  { id: 'modules', label: '模块入口', icon: '▦' },
 ]
 
-const resourceTabs = ['全部', '文档', '图片', '视频', '音频', '其他']
-const detailTabs = ['详情', '标签']
-const activeNav = ref('resource')
-const activeTab = ref('全部')
-const activeDetailTab = ref('详情')
-const keyword = ref('')
-const viewMode = ref('list')
-
-const resources = [
-  {
-    id: 1,
-    name: '高等数学（上）笔记',
-    type: '文件夹',
-    kind: 'folder',
-    badge: '📁',
-    source: '本地',
-    updatedAt: '2024-05-20 21:30',
-    createdAt: '2024-04-28 09:20',
-    size: '—',
-    group: '文件夹 · 12 项',
-    path: '/我的资源/高等数学（上）笔记',
-    description: '课程上课学习资料整理',
-  },
-  {
-    id: 2,
-    name: '第三章 极限与连续.docx',
-    type: '文档',
-    kind: 'doc',
-    badge: 'W',
-    source: '本地',
-    updatedAt: '2024-05-20 20:15',
-    createdAt: '2024-05-11 13:20',
-    size: '2.4 MB',
-    group: '文档 · 重点',
-    path: '/我的资源/高数/第三章 极限与连续.docx',
-    description: '章节整理与例题归纳',
-  },
-  {
-    id: 3,
-    name: '典型公式汇总.pdf',
-    type: '文档',
-    kind: 'pdf',
-    badge: 'PDF',
-    source: '本地',
-    updatedAt: '2024-05-19 18:40',
-    createdAt: '2024-05-09 11:10',
-    size: '1.8 MB',
-    group: '文档 · 总结',
-    path: '/我的资源/高数/典型公式汇总.pdf',
-    description: '考试前常用公式速查',
-  },
-  {
-    id: 4,
-    name: '极限的定义与性质.mp4',
-    type: '视频',
-    kind: 'video',
-    badge: '▶',
-    source: '网盘',
-    updatedAt: '2024-05-18 16:20',
-    createdAt: '2024-05-06 17:30',
-    size: '128 MB',
-    group: '视频 · 回看',
-    path: '/我的资源/高数/视频/极限的定义与性质.mp4',
-    description: '课堂录屏与重点讲解',
-  },
-  {
-    id: 5,
-    name: '重要公式思维导图.png',
-    type: '图片',
-    kind: 'image',
-    badge: '▣',
-    source: '本地',
-    updatedAt: '2024-05-17 14:10',
-    createdAt: '2024-05-08 09:42',
-    size: '2.1 MB',
-    group: '图片 · 导图',
-    path: '/我的资源/高数/图像/重要公式思维导图.png',
-    description: '思维导图版知识结构',
-  },
-  {
-    id: 6,
-    name: '知识点速记.mp3',
-    type: '音频',
-    kind: 'audio',
-    badge: '♫',
-    source: '本地',
-    updatedAt: '2024-05-16 11:05',
-    createdAt: '2024-05-07 22:00',
-    size: '5.7 MB',
-    group: '音频 · 速记',
-    path: '/我的资源/高数/音频/知识点速记.mp3',
-    description: '用于碎片化复习的朗读音频',
-  },
-  {
-    id: 7,
-    name: '微积分前置笔记.docx',
-    type: '文档',
-    kind: 'doc',
-    badge: 'W',
-    source: '本地',
-    updatedAt: '2024-05-15 10:30',
-    createdAt: '2024-05-04 14:50',
-    size: '3.2 MB',
-    group: '文档 · 预习',
-    path: '/我的资源/高数/微积分前置笔记.docx',
-    description: '课程预习与基础整理',
-  },
+const overviewCards = [
+  { label: '学习资料', value: '待接入', note: '资源模块完成后显示数量' },
+  { label: '错题本', value: '待接入', note: '错题模块完成后显示趋势' },
+  { label: '学习计划', value: '待接入', note: '计划模块完成后显示今日任务' },
 ]
 
-const stats = [
-  { label: '文件数', value: '12' },
-  { label: '总大小', value: '256MB' },
-  { label: '学习时长', value: '18.6h' },
-  { label: '完成进度', value: '68%' },
+const moduleCards = [
+  { index: '01', title: '统计模块', description: '首页统计、资源数量、练习次数、正确率、错题趋势。' },
+  { index: '02', title: '错题本模块', description: '错题列表、标记掌握、移出错题本。' },
+  { index: '03', title: '学习计划模块', description: '计划新增、查询、编辑、删除、完成状态。' },
+  { index: '04', title: '题库模块', description: '题目新增、查询、编辑、删除。' },
 ]
 
-const recentItems = [
-  { name: '第三章 极限与连续.docx', time: '刚刚', kind: 'doc', badge: 'W' },
-  { name: '极限的定义与性质.mp4', time: '20 分钟前', kind: 'video', badge: '▶' },
-  { name: '典型公式汇总.pdf', time: '1 小时前', kind: 'pdf', badge: 'PDF' },
-]
+const isLoggedIn = computed(() => Boolean(currentUser.value))
+const userInitial = computed(() => currentUser.value?.username?.slice(0, 1)?.toUpperCase() || 'T')
 
-const selectedResource = ref(resources[0])
+onMounted(() => {
+  if (getAuthToken()) {
+    loadCurrentUser()
+  }
+})
 
-const filteredResources = computed(() =>
-  resources.filter((item) => {
-    const matchesTab = activeTab.value === '全部' || item.type === activeTab.value
-    const matchesKeyword =
-      !keyword.value ||
-      item.name.includes(keyword.value) ||
-      item.description.includes(keyword.value)
-    return matchesTab && matchesKeyword
-  }),
-)
+function switchAuthMode(mode) {
+  authMode.value = mode
+  clearMessage()
+}
+
+async function submitAuth() {
+  clearMessage()
+  if (!authForm.username || !authForm.password) {
+    setMessage('error', '请填写用户名和密码')
+    return
+  }
+
+  loading.value = true
+  try {
+    if (authMode.value === 'register') {
+      await registerUser({
+        username: authForm.username,
+        password: authForm.password,
+        email: authForm.email || null,
+      })
+      setMessage('success', '注册成功，请登录')
+      authMode.value = 'login'
+      authForm.password = ''
+      return
+    }
+
+    await loginUser({
+      username: authForm.username,
+      password: authForm.password,
+    })
+    await loadCurrentUser()
+    setMessage('success', '登录成功')
+  } catch (error) {
+    setMessage('error', readErrorMessage(error, authMode.value === 'login' ? '登录失败' : '注册失败'))
+  } finally {
+    loading.value = false
+  }
+}
+
+async function loadCurrentUser() {
+  loading.value = true
+  try {
+    const response = await getCurrentUserProfile()
+    currentUser.value = response.data.data
+    syncProfileForm()
+  } catch (error) {
+    clearAuthToken()
+    currentUser.value = null
+    setMessage('error', readErrorMessage(error, '登录状态已失效'))
+  } finally {
+    loading.value = false
+  }
+}
+
+async function submitProfile() {
+  clearMessage()
+  loading.value = true
+  try {
+    const response = await updateCurrentUserProfile({
+      email: profileForm.email || null,
+      avatar: profileForm.avatar || null,
+    })
+    currentUser.value = response.data.data
+    syncProfileForm()
+    setMessage('success', '资料已保存')
+  } catch (error) {
+    setMessage('error', readErrorMessage(error, '资料保存失败'))
+  } finally {
+    loading.value = false
+  }
+}
+
+async function submitPassword() {
+  clearMessage()
+  if (!passwordForm.oldPassword || !passwordForm.newPassword) {
+    setMessage('error', '请填写旧密码和新密码')
+    return
+  }
+  if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+    setMessage('error', '两次输入的新密码不一致')
+    return
+  }
+
+  loading.value = true
+  try {
+    await changeCurrentUserPassword({
+      oldPassword: passwordForm.oldPassword,
+      newPassword: passwordForm.newPassword,
+    })
+    passwordForm.oldPassword = ''
+    passwordForm.newPassword = ''
+    passwordForm.confirmPassword = ''
+    setMessage('success', '密码修改成功')
+  } catch (error) {
+    setMessage('error', readErrorMessage(error, '密码修改失败'))
+  } finally {
+    loading.value = false
+  }
+}
+
+function handleLogout() {
+  clearAuthToken()
+  currentUser.value = null
+  activePanel.value = 'dashboard'
+  setMessage('success', '已退出登录')
+}
+
+function syncProfileForm() {
+  profileForm.email = currentUser.value?.email || ''
+  profileForm.avatar = currentUser.value?.avatar || ''
+}
+
+function setMessage(type, text) {
+  message.type = type
+  message.text = text
+}
+
+function clearMessage() {
+  message.type = ''
+  message.text = ''
+}
+
+function readErrorMessage(error, fallback) {
+  return error.response?.data?.message || fallback
+}
 </script>
