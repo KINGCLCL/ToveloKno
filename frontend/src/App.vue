@@ -279,24 +279,83 @@
             <strong class="score-chip">{{ planProgress }}%</strong>
           </div>
 
+          <div class="plan-filter-bar">
+            <select v-model="planFilter.status" @change="refreshPlanFilter">
+              <option value="">全部状态</option>
+              <option value="pending">待完成</option>
+              <option value="completed">已完成</option>
+              <option value="cancelled">已取消</option>
+            </select>
+            <input v-model="planFilter.planDate" type="date" @change="refreshPlanFilter" />
+            <button class="primary-button" type="button" @click="openPlanEditor()">新增计划</button>
+          </div>
+
           <form class="ark-form inline-form" @submit.prevent="addPlan">
             <input v-model.trim="planDraft.title" placeholder="计划名称" />
             <input v-model.trim="planDraft.time" placeholder="时间，如 21:00" />
-            <button class="primary-button" type="submit">添加计划</button>
+            <button class="primary-button" type="submit">快速添加</button>
           </form>
 
-          <div class="timeline plan-list">
+          <div v-if="planLoading" class="plan-empty">加载中...</div>
+
+          <div v-else-if="plans.length === 0" class="plan-empty">
+            暂无学习计划，点击新增计划开始规划。
+          </div>
+
+          <div v-else class="timeline plan-list">
             <article v-for="item in plans" :key="item.id" :class="{ done: item.done }">
               <time>{{ item.time }}</time>
               <div>
                 <h4>{{ item.title }}</h4>
-                <p>{{ item.done ? '已完成，进入复盘区。' : '待执行，保持队列。' }}</p>
+                <p>{{ item.content || (item.done ? '已完成，进入复盘区。' : '待执行，保持队列。') }}</p>
               </div>
               <div class="card-actions">
-                <button type="button" @click="item.done = !item.done">{{ item.done ? '撤回' : '完成' }}</button>
+                <button
+                  type="button"
+                  @click="markPlanStatus(item.id, item.done ? 'pending' : 'completed')"
+                >
+                  {{ item.done ? '撤回' : '完成' }}
+                </button>
+                <button v-if="item.status === 'pending'" type="button" @click="markPlanStatus(item.id, 'cancelled')">取消</button>
+                <button type="button" @click="openPlanEditor(item)">编辑</button>
                 <button type="button" @click="removePlan(item.id)">删除</button>
               </div>
             </article>
+          </div>
+
+          <div v-if="planTotalPages > 1" class="plan-pagination">
+            <button type="button" :disabled="planPage <= 1" @click="planPage -= 1; loadPlans()">上一页</button>
+            <span>第 {{ planPage }} / {{ planTotalPages }} 页（共 {{ planTotal }} 条）</span>
+            <button type="button" :disabled="planPage >= planTotalPages" @click="planPage += 1; loadPlans()">下一页</button>
+          </div>
+
+          <div v-if="planEditorOpen" class="modal-overlay" @click.self="planEditorOpen = false">
+            <div class="modal-card">
+              <header>
+                <h3>{{ editingPlan ? '编辑计划' : '新增计划' }}</h3>
+              </header>
+              <form class="ark-form settings-form" @submit.prevent="submitPlan">
+                <label>
+                  <span>标题</span>
+                  <input v-model.trim="planForm.title" type="text" placeholder="例如：复习第三章" />
+                </label>
+                <label>
+                  <span>内容</span>
+                  <textarea v-model="planForm.content" rows="4" placeholder="详细描述学习内容，可选"></textarea>
+                </label>
+                <label>
+                  <span>计划日期</span>
+                  <input v-model="planForm.planDate" type="date" />
+                </label>
+                <p v-if="planFormError" class="message-line error">{{ planFormError }}</p>
+                <div class="modal-actions">
+                  <button class="outline-button" type="button" @click="planEditorOpen = false">取消</button>
+                  <button class="primary-button" type="submit" :disabled="planSubmitting">
+                    {{ planSubmitting ? '保存中...' : '保存' }}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         </section>
 
@@ -439,10 +498,15 @@
 import {
   changeCurrentUserPassword,
   clearAuthToken,
+  createStudyPlan,
+  deleteStudyPlan,
   getAuthToken,
   getCurrentUserProfile,
+  listStudyPlans,
   loginUser,
   updateCurrentUserProfile,
+  updateStudyPlan,
+  updateStudyPlanStatus,
 } from './api'
 
 const nowTime = () =>
@@ -584,6 +648,20 @@ export default {
         { id: 2, subject: '英语', title: '定语从句关系词', note: '先判断先行词，再看从句缺少成分。', mastered: true },
       ],
       planDraft: { title: '', time: '' },
+      planFilter: { status: '', planDate: '' },
+      planLoading: false,
+      planPage: 1,
+      planTotal: 0,
+      planTotalPages: 1,
+      planEditorOpen: false,
+      planSubmitting: false,
+      planFormError: '',
+      editingPlan: null,
+      planForm: {
+        title: '',
+        content: '',
+        planDate: '',
+      },
       plans: [
         { id: 1, title: '整理第三章公式', time: '09:30', done: true },
         { id: 2, title: '完成 20 道极限题', time: '15:00', done: false },
@@ -688,7 +766,15 @@ export default {
   mounted() {
     if (this.isLoggedIn) {
       this.loadProfile()
+      this.loadPlans()
     }
+  },
+  watch: {
+    activePanel(panel) {
+      if (panel === 'plan' && this.isLoggedIn) {
+        this.loadPlans()
+      }
+    },
   },
   methods: {
     async submitAuth() {
@@ -817,16 +903,132 @@ export default {
     },
     addPlan() {
       if (!this.planDraft.title) return
-      this.plans.unshift({
-        id: createId('plan'),
-        title: this.planDraft.title,
-        time: this.planDraft.time || nowTime(),
-        done: false,
-      })
-      this.planDraft = { title: '', time: '' }
+      this.createPlanFromDraft()
     },
-    removePlan(id) {
-      this.plans = this.plans.filter((item) => item.id !== id)
+    async createPlanFromDraft() {
+      const planDate = new Date().toISOString().slice(0, 10)
+      try {
+        await createStudyPlan({
+          title: this.planDraft.title,
+          content: this.planDraft.time ? `计划时间：${this.planDraft.time}` : null,
+          planDate,
+        })
+        this.planDraft = { title: '', time: '' }
+        await this.loadPlans()
+      } catch (error) {
+        this.profileMessage = error.response?.data?.message || '计划保存失败'
+      }
+    },
+    async loadPlans() {
+      this.planLoading = true
+      try {
+        const params = {
+          page: this.planPage,
+          size: 10,
+        }
+        if (this.planFilter.status) params.status = this.planFilter.status
+        if (this.planFilter.planDate) params.planDate = this.planFilter.planDate
+
+        const response = await listStudyPlans(params)
+        const pageData = response.data?.data || {}
+        this.plans = (pageData.records || []).map(this.mapStudyPlan)
+        this.planTotal = pageData.total || this.plans.length
+        this.planTotalPages = pageData.totalPages || 1
+      } catch {
+        // 后端未启动时保留本地示例计划，方便继续预览界面。
+      } finally {
+        this.planLoading = false
+      }
+    },
+    mapStudyPlan(plan) {
+      return {
+        id: plan.id,
+        title: plan.title,
+        content: plan.content || '',
+        planDate: plan.planDate || '',
+        time: plan.planDate || '今日',
+        status: plan.status || (plan.done ? 'completed' : 'pending'),
+        done: plan.status === 'completed' || Boolean(plan.done),
+      }
+    },
+    openPlanEditor(plan = null) {
+      this.planFormError = ''
+      if (plan) {
+        this.editingPlan = plan
+        this.planForm = {
+          title: plan.title,
+          content: plan.content || '',
+          planDate: plan.planDate || new Date().toISOString().slice(0, 10),
+        }
+      } else {
+        this.editingPlan = null
+        this.planForm = {
+          title: '',
+          content: '',
+          planDate: new Date().toISOString().slice(0, 10),
+        }
+      }
+      this.planEditorOpen = true
+    },
+    async submitPlan() {
+      this.planFormError = ''
+      if (!this.planForm.title.trim()) {
+        this.planFormError = '请填写计划标题'
+        return
+      }
+      if (!this.planForm.planDate) {
+        this.planFormError = '请选择计划日期'
+        return
+      }
+
+      this.planSubmitting = true
+      try {
+        const data = {
+          title: this.planForm.title.trim(),
+          content: this.planForm.content.trim() || null,
+          planDate: this.planForm.planDate,
+        }
+        if (this.editingPlan) {
+          await updateStudyPlan(this.editingPlan.id, data)
+          this.profileMessage = '计划已更新'
+        } else {
+          await createStudyPlan(data)
+          this.profileMessage = '计划已创建'
+        }
+        this.planEditorOpen = false
+        await this.loadPlans()
+      } catch (error) {
+        this.planFormError = error.response?.data?.message || '保存失败'
+      } finally {
+        this.planSubmitting = false
+      }
+    },
+    async removePlan(id) {
+      if (!window.confirm('确定要删除这条学习计划吗？')) return
+      try {
+        await deleteStudyPlan(id)
+        if (this.plans.length === 1 && this.planPage > 1) {
+          this.planPage -= 1
+        }
+        await this.loadPlans()
+      } catch (error) {
+        this.profileMessage = error.response?.data?.message || '删除失败'
+      }
+    },
+    async markPlanStatus(id, status) {
+      try {
+        await updateStudyPlanStatus(id, status)
+        await this.loadPlans()
+      } catch (error) {
+        this.profileMessage = error.response?.data?.message || '状态更新失败'
+      }
+    },
+    statusLabel(status) {
+      return { pending: '待完成', completed: '已完成', cancelled: '已取消' }[status] || status
+    },
+    refreshPlanFilter() {
+      this.planPage = 1
+      this.loadPlans()
     },
     async saveProfile() {
       try {

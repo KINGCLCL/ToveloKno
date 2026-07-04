@@ -3224,3 +3224,298 @@ input:disabled {
     grid-template-columns: 1fr;
   }
 }
+
+/* ── 学习计划模块样式 ── */
+
+.plan-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 22px;
+  flex-wrap: wrap;
+}
+
+.plan-filter-bar select,
+.plan-filter-bar input[type="date"] {
+  min-height: 42px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--ink);
+  background: var(--field);
+  font: inherit;
+  outline: none;
+}
+
+.plan-filter-bar select:focus,
+.plan-filter-bar input[type="date"]:focus {
+  border-color: rgba(47, 125, 104, 0.62);
+  box-shadow: 0 0 0 4px rgba(47, 125, 104, 0.1);
+}
+
+.plan-filter-bar .primary-action.narrow {
+  margin-left: auto;
+}
+
+.plan-empty {
+  min-height: 160px;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  background: #f8faf8;
+}
+
+.plan-list {
+  display: grid;
+  gap: 12px;
+}
+
+.plan-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--paper);
+  transition: box-shadow 0.2s;
+}
+
+.plan-card:hover {
+  box-shadow: 0 8px 28px rgba(35, 58, 52, 0.08);
+}
+
+.plan-card.is-completed {
+  opacity: 0.72;
+}
+
+.plan-card.is-cancelled {
+  opacity: 0.55;
+}
+
+.plan-card.is-completed .plan-card-body strong,
+.plan-card.is-cancelled .plan-card-body strong {
+  text-decoration: line-through;
+}
+
+.plan-card-left {
+  flex-shrink: 0;
+}
+
+.plan-status-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.plan-status-badge.pending {
+  color: #8b6f1a;
+  background: rgba(216, 169, 79, 0.18);
+}
+
+.plan-status-badge.completed {
+  color: #155c49;
+  background: rgba(47, 125, 104, 0.16);
+}
+
+.plan-status-badge.cancelled {
+  color: #6b4e5a;
+  background: rgba(120, 100, 110, 0.14);
+}
+
+.plan-card-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.plan-card-body strong {
+  display: block;
+  color: var(--ink);
+  font-size: 16px;
+}
+
+.plan-card-body p {
+  margin: 6px 0 8px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.6;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.plan-date {
+  color: #7f8d84;
+  font-size: 13px;
+}
+
+.plan-card-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.mini-btn {
+  min-height: 32px;
+  padding: 0 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.mini-btn.done {
+  color: #fff;
+  background: var(--green);
+}
+
+.mini-btn.done:hover {
+  background: var(--green-dark);
+}
+
+.mini-btn.undo {
+  color: var(--amber);
+  background: rgba(216, 169, 79, 0.14);
+}
+
+.mini-btn.undo:hover {
+  background: rgba(216, 169, 79, 0.26);
+}
+
+.mini-btn.cancel {
+  color: #8b5a4a;
+  background: rgba(180, 130, 110, 0.14);
+}
+
+.mini-btn.cancel:hover {
+  background: rgba(180, 130, 110, 0.26);
+}
+
+.mini-btn.edit {
+  color: var(--green-dark);
+  background: rgba(47, 125, 104, 0.12);
+}
+
+.mini-btn.edit:hover {
+  background: rgba(47, 125, 104, 0.22);
+}
+
+.mini-btn.delete {
+  color: #9b3f2f;
+  background: rgba(217, 112, 89, 0.12);
+}
+
+.mini-btn.delete:hover {
+  background: rgba(217, 112, 89, 0.22);
+}
+
+.plan-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 22px;
+  padding: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.plan-pagination button {
+  min-height: 38px;
+  padding: 0 18px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--paper);
+  color: var(--ink);
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.plan-pagination button:hover:not(:disabled) {
+  background: rgba(47, 125, 104, 0.1);
+  border-color: var(--green);
+}
+
+.plan-pagination button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.plan-pagination span {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+/* 弹窗样式 */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  background: rgba(30, 40, 35, 0.42);
+}
+
+.modal-card {
+  width: min(540px, calc(100vw - 32px));
+  padding: 28px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: var(--shadow);
+}
+
+.modal-card header {
+  margin-bottom: 22px;
+}
+
+.modal-card h3 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 24px;
+}
+
+.modal-card textarea {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--ink);
+  background: var(--field);
+  outline: none;
+  font: inherit;
+  resize: vertical;
+}
+
+.modal-card textarea:focus {
+  border-color: rgba(47, 125, 104, 0.62);
+  box-shadow: 0 0 0 4px rgba(47, 125, 104, 0.1);
+}
+
+.modal-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+.modal-actions .ghost-action {
+  width: auto;
+  min-width: 90px;
+  margin-top: 0;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid var(--line);
+}
+
+.modal-actions .ghost-action:hover {
+  background: #f3f6f4;
+}
