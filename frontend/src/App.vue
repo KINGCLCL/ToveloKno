@@ -194,6 +194,128 @@
           </div>
         </section>
 
+        <!-- 学习计划模块 -->
+        <section v-if="activePanel === 'studyPlan'" class="panel-card">
+          <header>
+            <h3>学习计划</h3>
+            <p>管理你的学习任务，支持新增、编辑、删除和状态跟踪。</p>
+          </header>
+
+          <!-- 筛选栏 -->
+          <div class="plan-filter-bar">
+            <select v-model="planFilter.status">
+              <option value="">全部状态</option>
+              <option value="pending">待完成</option>
+              <option value="completed">已完成</option>
+              <option value="cancelled">已取消</option>
+            </select>
+            <input v-model="planFilter.planDate" type="date" placeholder="按日期筛选" />
+            <button class="primary-action narrow" type="button" @click="openPlanEditor()">
+              ＋ 新增计划
+            </button>
+          </div>
+
+          <!-- 计划列表 -->
+          <div v-if="planLoading" class="plan-empty">加载中...</div>
+
+          <div v-else-if="planList.length === 0" class="plan-empty">
+            暂无学习计划，点击"新增计划"开始规划吧。
+          </div>
+
+          <div v-else class="plan-list">
+            <article
+              v-for="plan in planList"
+              :key="plan.id"
+              class="plan-card"
+              :class="{ 'is-completed': plan.status === 'completed', 'is-cancelled': plan.status === 'cancelled' }"
+            >
+              <div class="plan-card-left">
+                <span class="plan-status-badge" :class="plan.status">
+                  {{ statusLabel(plan.status) }}
+                </span>
+              </div>
+              <div class="plan-card-body">
+                <strong>{{ plan.title }}</strong>
+                <p v-if="plan.content">{{ plan.content }}</p>
+                <span class="plan-date">{{ plan.planDate }}</span>
+              </div>
+              <div class="plan-card-actions">
+                <button
+                  v-if="plan.status === 'pending'"
+                  class="mini-btn done"
+                  type="button"
+                  @click="markPlanStatus(plan.id, 'completed')"
+                >
+                  完成
+                </button>
+                <button
+                  v-if="plan.status === 'completed'"
+                  class="mini-btn undo"
+                  type="button"
+                  @click="markPlanStatus(plan.id, 'pending')"
+                >
+                  恢复
+                </button>
+                <button
+                  v-if="plan.status === 'pending'"
+                  class="mini-btn cancel"
+                  type="button"
+                  @click="markPlanStatus(plan.id, 'cancelled')"
+                >
+                  取消
+                </button>
+                <button class="mini-btn edit" type="button" @click="openPlanEditor(plan)">
+                  编辑
+                </button>
+                <button class="mini-btn delete" type="button" @click="removePlan(plan.id)">
+                  删除
+                </button>
+              </div>
+            </article>
+          </div>
+
+          <!-- 分页 -->
+          <div v-if="planTotalPages > 1" class="plan-pagination">
+            <button type="button" :disabled="planPage <= 1" @click="planPage--; loadPlans()">
+              上一页
+            </button>
+            <span>第 {{ planPage }} / {{ planTotalPages }} 页（共 {{ planTotal }} 条）</span>
+            <button type="button" :disabled="planPage >= planTotalPages" @click="planPage++; loadPlans()">
+              下一页
+            </button>
+          </div>
+        </section>
+
+        <!-- 计划编辑弹窗 -->
+        <div v-if="planEditorOpen" class="modal-overlay" @click.self="planEditorOpen = false">
+          <div class="modal-card">
+            <header>
+              <h3>{{ editingPlan ? '编辑计划' : '新增计划' }}</h3>
+            </header>
+            <form class="settings-form" @submit.prevent="submitPlan">
+              <label>
+                <span>标题</span>
+                <input v-model.trim="planForm.title" type="text" placeholder="例如：复习第三章" />
+              </label>
+              <label>
+                <span>内容</span>
+                <textarea v-model="planForm.content" rows="4" placeholder="详细描述学习内容，可选"></textarea>
+              </label>
+              <label>
+                <span>计划日期</span>
+                <input v-model="planForm.planDate" type="date" />
+              </label>
+              <p v-if="planFormError" class="message-line error">{{ planFormError }}</p>
+              <div class="modal-actions">
+                <button class="ghost-action" type="button" @click="planEditorOpen = false">取消</button>
+                <button class="primary-action narrow" type="submit" :disabled="planSubmitting">
+                  {{ planSubmitting ? '保存中...' : '保存' }}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+
         <p v-if="message.text" class="message-line floating" :class="message.type">{{ message.text }}</p>
       </section>
     </section>
@@ -201,15 +323,20 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import {
   changeCurrentUserPassword,
   clearAuthToken,
+  createStudyPlan,
+  deleteStudyPlan,
   getAuthToken,
   getCurrentUserProfile,
+  listStudyPlans,
   loginUser,
   registerUser,
   updateCurrentUserProfile,
+  updateStudyPlan,
+  updateStudyPlanStatus,
 } from './api'
 
 const authMode = ref('login')
@@ -239,6 +366,7 @@ const navItems = [
   { id: 'dashboard', label: '主页概览', icon: '⌂' },
   { id: 'profile', label: '个人资料', icon: '◎' },
   { id: 'security', label: '账号安全', icon: '◈' },
+  { id: 'studyPlan', label: '学习计划', icon: '📋' },
   { id: 'modules', label: '模块入口', icon: '▦' },
 ]
 
@@ -254,6 +382,26 @@ const moduleCards = [
   { index: '03', title: '学习计划模块', description: '计划新增、查询、编辑、删除、完成状态。' },
   { index: '04', title: '题库模块', description: '题目新增、查询、编辑、删除。' },
 ]
+
+// ── 学习计划状态 ──
+const planList = ref([])
+const planLoading = ref(false)
+const planPage = ref(1)
+const planTotal = ref(0)
+const planTotalPages = ref(1)
+const planFilter = reactive({
+  status: '',
+  planDate: '',
+})
+const planEditorOpen = ref(false)
+const planSubmitting = ref(false)
+const planFormError = ref('')
+const editingPlan = ref(null)
+const planForm = reactive({
+  title: '',
+  content: '',
+  planDate: '',
+})
 
 const isLoggedIn = computed(() => Boolean(currentUser.value))
 const userInitial = computed(() => currentUser.value?.username?.slice(0, 1)?.toUpperCase() || 'T')
@@ -363,6 +511,126 @@ async function submitPassword() {
     loading.value = false
   }
 }
+
+async function loadPlans() {
+  planLoading.value = true
+  try {
+    const params = {
+      page: planPage.value,
+      size: 10,
+    }
+    if (planFilter.status) params.status = planFilter.status
+    if (planFilter.planDate) params.planDate = planFilter.planDate
+
+    const response = await listStudyPlans(params)
+    const pageData = response.data.data
+    planList.value = pageData.records || []
+    planTotal.value = pageData.total || 0
+    planTotalPages.value = pageData.totalPages || 1
+  } catch (error) {
+    setMessage('error', readErrorMessage(error, '加载计划失败'))
+  } finally {
+    planLoading.value = false
+  }
+}
+
+function openPlanEditor(plan = null) {
+  planFormError.value = ''
+  if (plan) {
+    editingPlan.value = plan
+    planForm.title = plan.title
+    planForm.content = plan.content || ''
+    planForm.planDate = plan.planDate
+  } else {
+    editingPlan.value = null
+    planForm.title = ''
+    planForm.content = ''
+    planForm.planDate = new Date().toISOString().slice(0, 10)
+  }
+  planEditorOpen.value = true
+}
+
+async function submitPlan() {
+  planFormError.value = ''
+  if (!planForm.title.trim()) {
+    planFormError.value = '请填写计划标题'
+    return
+  }
+  if (!planForm.planDate) {
+    planFormError.value = '请选择计划日期'
+    return
+  }
+
+  planSubmitting.value = true
+  try {
+    const data = {
+      title: planForm.title.trim(),
+      content: planForm.content.trim() || null,
+      planDate: planForm.planDate,
+    }
+    if (editingPlan.value) {
+      await updateStudyPlan(editingPlan.value.id, data)
+      setMessage('success', '计划已更新')
+    } else {
+      await createStudyPlan(data)
+      setMessage('success', '计划已创建')
+    }
+    planEditorOpen.value = false
+    await loadPlans()
+  } catch (error) {
+    planFormError.value = readErrorMessage(error, '保存失败')
+  } finally {
+    planSubmitting.value = false
+  }
+}
+
+async function removePlan(planId) {
+  if (!window.confirm('确定要删除这条学习计划吗？')) return
+  try {
+    await deleteStudyPlan(planId)
+    setMessage('success', '计划已删除')
+    // 如果当前页删空了且不是第一页，回退一页
+    if (planList.value.length === 1 && planPage.value > 1) {
+      planPage.value--
+    }
+    await loadPlans()
+  } catch (error) {
+    setMessage('error', readErrorMessage(error, '删除失败'))
+  }
+}
+
+async function markPlanStatus(planId, status) {
+  try {
+    await updateStudyPlanStatus(planId, status)
+    const labels = { completed: '已完成', pending: '已恢复', cancelled: '已取消' }
+    setMessage('success', `计划已标记为${labels[status] || status}`)
+    await loadPlans()
+  } catch (error) {
+    setMessage('error', readErrorMessage(error, '状态更新失败'))
+  }
+}
+
+function statusLabel(status) {
+  const labels = { pending: '待完成', completed: '已完成', cancelled: '已取消' }
+  return labels[status] || status
+}
+
+// 监听筛选条件变化时重新加载
+function onPlanFilterChange() {
+  planPage.value = 1
+  loadPlans()
+}
+
+// 切换筛选条件时自动刷新
+watch(() => planFilter.status, () => onPlanFilterChange())
+watch(() => planFilter.planDate, () => onPlanFilterChange())
+
+// 切换到学习计划面板时加载数据
+watch(activePanel, (panel) => {
+  if (panel === 'studyPlan') {
+    loadPlans()
+  }
+})
 
 function handleLogout() {
   clearAuthToken()

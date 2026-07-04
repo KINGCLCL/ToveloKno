@@ -147,5 +147,35 @@ export function deleteTag(tagId) {
   return api.delete(`/tags/${tagId}`)
 }
 
+// 查询学习计划列表，支持 status、planDate、page、size 参数。
+export function listStudyPlans(params = {}) {
+  return api.get('/study-plans', { params })
+}
+
+// 查询单条学习计划详情。
+export function getStudyPlan(planId) {
+  return api.get(`/study-plans/${planId}`)
+}
+
+// 新增学习计划。
+export function createStudyPlan(data) {
+  return api.post('/study-plans', data)
+}
+
+// 编辑学习计划。
+export function updateStudyPlan(planId, data) {
+  return api.put(`/study-plans/${planId}`, data)
+}
+
+// 删除学习计划。
+export function deleteStudyPlan(planId) {
+  return api.delete(`/study-plans/${planId}`)
+}
+
+// 修改学习计划状态（pending / completed / cancelled）。
+export function updateStudyPlanStatus(planId, status) {
+  return api.put(`/study-plans/${planId}/status`, { status })
+}
+
 // 默认导出 axios 实例，后续题库、错题本、计划、统计模块可以直接复用。
 export default api
