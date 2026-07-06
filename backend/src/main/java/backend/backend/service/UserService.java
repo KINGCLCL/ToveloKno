@@ -6,6 +6,7 @@ import backend.backend.common.ForbiddenException;
 import backend.backend.dto.ChangePasswordRequest;
 import backend.backend.dto.LoginRequest;
 import backend.backend.dto.LoginResponse;
+import backend.backend.dto.ProfileImageUploadResponse;
 import backend.backend.dto.RegisterRequest;
 import backend.backend.dto.UpdateUserProfileRequest;
 import backend.backend.dto.UserResponse;
@@ -14,10 +15,18 @@ import backend.backend.entity.User;
 import backend.backend.repository.RoleRepository;
 import backend.backend.repository.UserRepository;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Locale;
 import java.util.List;
+import java.util.Set;
+import java.util.UUID;
 
 /**
  * 用户模块业务层。
@@ -32,17 +41,20 @@ public class UserService {
     private final RoleRepository roleRepository;
     private final AuthTokenService authTokenService;
     private final OperationLogService operationLogService;
+    private final Path uploadRoot;
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     public UserService(
             UserRepository userRepository,
             RoleRepository roleRepository,
             AuthTokenService authTokenService,
-            OperationLogService operationLogService) {
+            OperationLogService operationLogService,
+            @Value("${app.upload.profile-dir:uploads/profile}") String uploadDir) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.authTokenService = authTokenService;
         this.operationLogService = operationLogService;
+        this.uploadRoot = Path.of(uploadDir).toAbsolutePath().normalize();
     }
 
     /**
@@ -131,10 +143,38 @@ public class UserService {
         }
 
         user.setEmail(email);
+        user.setNickname(normalizeText(request.getNickname()));
+        user.setBio(normalizeText(request.getBio()));
         user.setAvatar(normalizeText(request.getAvatar()));
+        user.setProfileBackground(normalizeText(request.getProfileBackground()));
 
         operationLogService.record(currentUser.getId(), "USER_UPDATE_PROFILE", "修改用户资料：" + user.getUsername());
         return toResponse(userRepository.save(user));
+    }
+
+    /**
+     * 上传当前用户的头像或个人主页背景图，并把 URL 写入用户资料。
+     */
+    @Transactional
+    public ProfileImageUploadResponse uploadCurrentUserProfileImage(
+            AuthenticatedUser currentUser,
+            MultipartFile file,
+            String type) {
+        User user = findUserById(currentUser.getId());
+        String url = saveProfileImage(file);
+        String normalizedType = type == null ? "avatar" : type.trim().toLowerCase(Locale.ROOT);
+
+        if ("background".equals(normalizedType)) {
+            user.setProfileBackground(url);
+        } else if ("avatar".equals(normalizedType)) {
+            user.setAvatar(url);
+        } else {
+            throw new IllegalArgumentException("图片类型只能是 avatar 或 background");
+        }
+
+        User savedUser = userRepository.save(user);
+        operationLogService.record(currentUser.getId(), "USER_UPLOAD_PROFILE_IMAGE", "上传个人主页图片：" + normalizedType);
+        return new ProfileImageUploadResponse(url, toResponse(savedUser));
     }
 
     /**
@@ -196,11 +236,56 @@ public class UserService {
                 user.getId(),
                 user.getUsername(),
                 user.getEmail(),
+                user.getNickname(),
+                user.getBio(),
                 user.getAvatar(),
+                user.getProfileBackground(),
                 user.getStatus(),
                 roles,
                 user.getCreatedAt()
         );
+    }
+
+    private String saveProfileImage(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("请选择要上传的图片");
+        }
+        String contentType = file.getContentType();
+        if (contentType == null || !contentType.toLowerCase(Locale.ROOT).startsWith("image/")) {
+            throw new IllegalArgumentException("只能上传图片文件");
+        }
+        if (file.getSize() > 5 * 1024 * 1024) {
+            throw new IllegalArgumentException("图片不能超过 5MB");
+        }
+
+        String extension = extensionFrom(file.getOriginalFilename(), contentType);
+        String filename = UUID.randomUUID() + extension;
+        try {
+            Files.createDirectories(uploadRoot);
+            file.transferTo(uploadRoot.resolve(filename));
+        } catch (IOException exception) {
+            throw new IllegalStateException("图片保存失败");
+        }
+        return "/uploads/profile/" + filename;
+    }
+
+    private String extensionFrom(String originalFilename, String contentType) {
+        Set<String> allowed = Set.of(".jpg", ".jpeg", ".png", ".gif", ".webp");
+        if (originalFilename != null) {
+            int dotIndex = originalFilename.lastIndexOf('.');
+            if (dotIndex >= 0) {
+                String extension = originalFilename.substring(dotIndex).toLowerCase(Locale.ROOT);
+                if (allowed.contains(extension)) {
+                    return extension;
+                }
+            }
+        }
+        return switch (contentType.toLowerCase(Locale.ROOT)) {
+            case "image/png" -> ".png";
+            case "image/gif" -> ".gif";
+            case "image/webp" -> ".webp";
+            default -> ".jpg";
+        };
     }
 
     // 限制普通用户只能操作自己的数据；管理员角色可以操作其他用户数据。

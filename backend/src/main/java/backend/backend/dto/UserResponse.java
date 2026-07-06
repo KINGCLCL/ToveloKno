@@ -14,7 +14,10 @@ public class UserResponse {
     private Long id;
     private String username;
     private String email;
+    private String nickname;
+    private String bio;
     private String avatar;
+    private String profileBackground;
     private Integer status;
 
     // 角色列表用于前端判断是否显示管理员菜单。
@@ -23,11 +26,14 @@ public class UserResponse {
     // 注册时间可以展示在个人中心。
     private LocalDateTime createdAt;
 
-    public UserResponse(Long id, String username, String email, String avatar, Integer status, List<String> roles, LocalDateTime createdAt) {
+    public UserResponse(Long id, String username, String email, String nickname, String bio, String avatar, String profileBackground, Integer status, List<String> roles, LocalDateTime createdAt) {
         this.id = id;
         this.username = username;
         this.email = email;
+        this.nickname = nickname;
+        this.bio = bio;
         this.avatar = avatar;
+        this.profileBackground = profileBackground;
         this.status = status;
         this.roles = roles;
         this.createdAt = createdAt;
@@ -45,8 +51,20 @@ public class UserResponse {
         return email;
     }
 
+    public String getNickname() {
+        return nickname;
+    }
+
+    public String getBio() {
+        return bio;
+    }
+
     public String getAvatar() {
         return avatar;
+    }
+
+    public String getProfileBackground() {
+        return profileBackground;
     }
 
     public Integer getStatus() {

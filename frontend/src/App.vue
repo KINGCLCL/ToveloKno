@@ -6,40 +6,163 @@
           <div class="brand-mark">
             <span class="hexagon"></span>
             <strong>ToveloKno</strong>
+            <small>STUDY COMMAND UI</small>
+          </div>
+
+          <div class="art-hud art-hud-primary" aria-hidden="true">
+            <span>TOVELOKNO CORE</span>
+            <strong>LEARNING DESK</strong>
+            <em>SYNC-07</em>
+          </div>
+
+          <div class="art-hud art-hud-secondary" aria-hidden="true">
+            <span>STUDY STATUS</span>
+            <strong>ACTIVE</strong>
+            <em>0.42ms</em>
+          </div>
+
+          <div class="signal-bars" aria-hidden="true">
+            <i></i>
+            <i></i>
+            <i></i>
           </div>
         </section>
 
         <section class="login-panel">
+          <div class="panel-meta">
+            <span>TOVELOKNO / STUDY OPS</span>
+            <b>{{ authMode === 'register' ? 'NEW USER' : 'ONLINE' }}</b>
+          </div>
+          <h1>{{ authMode === 'register' ? 'Register' : 'Login' }}</h1>
+          <p class="login-subtitle">
+            {{ authMode === 'register' ? '创建一个新的学习终端账号' : '接入你的个人学习控制台' }}
+          </p>
+
+          <div class="auth-switch" role="tablist" aria-label="认证模式">
+            <button type="button" :class="{ active: authMode === 'login' }" @click="setAuthMode('login')">LOGIN</button>
+            <button type="button" :class="{ active: authMode === 'register' }" @click="setAuthMode('register')">REGISTER</button>
+          </div>
+
           <form class="auth-form" @submit.prevent="submitAuth">
             <label>
               <span>用户名</span>
               <div class="soft-input">
-                <span>U</span>
+                <span>ID</span>
                 <input v-model.trim="authForm.username" type="text" autocomplete="username" placeholder="请输入用户名" />
               </div>
             </label>
             <label>
               <span>密码</span>
               <div class="soft-input">
-                <span>L</span>
-                <input v-model="authForm.password" type="password" autocomplete="current-password" placeholder="请输入密码" />
+                <span>PW</span>
+                <input
+                  v-model="authForm.password"
+                  type="password"
+                  :autocomplete="authMode === 'register' ? 'new-password' : 'current-password'"
+                  placeholder="请输入密码"
+                />
               </div>
             </label>
             <label>
               <span>邮箱</span>
               <div class="soft-input">
-                <span>M</span>
-                <input v-model.trim="authForm.email" type="email" autocomplete="email" placeholder="登录可不填邮箱" />
+                <span>ML</span>
+                <input
+                  v-model.trim="authForm.email"
+                  type="email"
+                  autocomplete="email"
+                  :placeholder="authMode === 'register' ? '可选：用于资料展示' : '登录可不填邮箱'"
+                />
               </div>
             </label>
             <p v-if="message.text" class="message-line" :class="message.type">{{ message.text }}</p>
             <button class="login-submit" type="submit" :disabled="loading">
-              <span>{{ loading ? '处理中...' : '登 录' }}</span>
+              <span>{{ loading ? '处理中...' : authMode === 'register' ? '创建账号' : '登录系统' }}</span>
               <b>-></b>
             </button>
           </form>
         </section>
       </div>
+    </section>
+
+    <section v-else-if="activePanel === 'profile'" class="profile-screen">
+      <header class="profile-topbar">
+        <button type="button" @click="activePanel = 'dashboard'">返回学习控制台</button>
+        <strong>ToveloKno</strong>
+        <button type="button" @click="handleLogout">退出登录</button>
+      </header>
+
+      <main class="profile-canvas">
+        <section
+          class="profile-cover"
+          :style="profileCoverStyle"
+        >
+          <div v-if="profileDiy.backgroundUrl" class="profile-cover-image" aria-hidden="true"></div>
+          <div class="profile-avatar-wrap">
+            <button class="profile-hero-avatar" type="button" title="悬停片刻放大头像">
+              <img v-if="profileAvatarSrc" :src="profileAvatarSrc" alt="头像" />
+              <span v-else>{{ profileName.slice(0, 1).toUpperCase() }}</span>
+            </button>
+          </div>
+
+          <div class="profile-main-copy">
+            <span class="ark-kicker">PERSONAL PAGE</span>
+            <h2>{{ profileName }}</h2>
+            <p>{{ profileForm.bio || profile.bio }}</p>
+            <em>{{ profileDiy.signature || '把知识整理成自己的节奏。' }}</em>
+          </div>
+
+          <div class="profile-cover-note">
+            <span>LV.{{ level }}</span>
+            <strong>{{ profileDiy.coverText || '今日状态：轻装上阵' }}</strong>
+          </div>
+        </section>
+
+        <section class="profile-personal-grid">
+          <article class="profile-story">
+            <span>ABOUT</span>
+            <h3>{{ profileDiy.coverText || '我的学习档案' }}</h3>
+            <p>{{ profileForm.bio || profile.bio }}</p>
+            <div class="profile-mini-stats">
+              <span><b>{{ resources.length }}</b>资料</span>
+              <span><b>{{ cards.length }}</b>卡片</span>
+              <span><b>{{ planProgress }}%</b>进度</span>
+            </div>
+          </article>
+
+          <form class="profile-editor" @submit.prevent="saveProfile">
+            <header>
+              <span>DIY</span>
+              <strong>个人主页编辑</strong>
+            </header>
+            <label>
+              <span>名字</span>
+              <input v-model.trim="profileForm.nickname" placeholder="你的名字" />
+            </label>
+            <label>
+              <span>头像图片</span>
+              <input type="file" accept="image/*" @change="uploadProfileImage($event, 'avatar')" />
+            </label>
+            <label>
+              <span>头图背景</span>
+              <input type="file" accept="image/*" @change="uploadProfileImage($event, 'background')" />
+            </label>
+            <label>
+              <span>个人简介</span>
+              <textarea v-model.trim="profileForm.bio" rows="4" placeholder="写一点你想展示的简介"></textarea>
+            </label>
+            <label>
+              <span>签名</span>
+              <input v-model.trim="profileDiy.signature" placeholder="一句短签名" />
+            </label>
+            <label>
+              <span>头图文案</span>
+              <input v-model.trim="profileDiy.coverText" placeholder="例如：今日状态：轻装上阵" />
+            </label>
+            <button class="primary-button soft" type="submit">保存主页资料</button>
+          </form>
+        </section>
+      </main>
     </section>
 
     <section v-else class="workspace">
@@ -67,32 +190,72 @@
       </aside>
 
       <section class="content-frame">
-        <section v-if="activePanel === 'home'" class="module-board ark-board home-board">
-          <div class="workspace-hero">
-            <p>ARK-LIGHT STUDY DESK</p>
-            <h2>{{ profile.nickname }}，今天把知识排成战术队列。</h2>
+        <section v-if="activePanel === 'dashboard'" class="module-board ark-board home-board">
+          <div class="home-command-strip">
+            <div>
+              <span class="ark-kicker">ARK-LIGHT / STUDY OPS</span>
+              <h3>{{ profile.nickname }} 的学习控制台</h3>
+              <p>今日任务、资源入口与复盘状态集中调度。</p>
+            </div>
+            <div class="home-readout">
+              <span>PLAN SYNC</span>
+              <strong>{{ planProgress }}%</strong>
+              <i :style="{ width: `${planProgress}%` }"></i>
+            </div>
           </div>
-          <div class="ops-grid">
-            <article
-              v-for="item in homeCards"
-              :key="item.id"
-              class="ops-card"
-              :class="{ selected: activePanel === item.id }"
-              @click="activePanel = item.id"
-            >
-              <span>{{ item.code }}</span>
-              <h4>{{ item.title }}</h4>
-              <p>{{ item.text }}</p>
-            </article>
+
+          <div class="home-ops-layout">
+            <div class="ops-grid command-grid">
+              <article
+                v-for="item in homeCards"
+                :key="item.id"
+                class="ops-card"
+                :class="{ selected: activePanel === item.id }"
+                @click="activePanel = item.id"
+              >
+                <span>{{ item.code }}</span>
+                <h4>{{ item.title }}</h4>
+                <p>{{ item.text }}</p>
+                <b>OPEN</b>
+              </article>
+            </div>
+
+            <aside class="home-status-panel">
+              <span class="ark-kicker">STATUS</span>
+              <strong>{{ resources.length + cards.length + wrongQuestions.length }}</strong>
+              <p>当前学习对象</p>
+              <dl>
+                <div>
+                  <dt>资料</dt>
+                  <dd>{{ resources.length }}</dd>
+                </div>
+                <div>
+                  <dt>卡片</dt>
+                  <dd>{{ cards.length }}</dd>
+                </div>
+                <div>
+                  <dt>错题</dt>
+                  <dd>{{ wrongQuestions.length }}</dd>
+                </div>
+              </dl>
+            </aside>
           </div>
-          <div class="timeline">
-            <article v-for="task in todayFocus" :key="task.title" :class="{ done: task.done }">
-              <time>{{ task.time }}</time>
-              <div>
-                <h4>{{ task.title }}</h4>
-                <p>{{ task.desc }}</p>
-              </div>
-            </article>
+
+          <div class="home-task-board">
+            <header>
+              <span class="ark-kicker">TODAY QUEUE</span>
+              <strong>{{ todayFocus.filter((task) => task.done).length }} / {{ todayFocus.length }}</strong>
+            </header>
+            <div class="timeline command-timeline">
+              <article v-for="task in todayFocus" :key="task.title" :class="{ done: task.done }">
+                <time>{{ task.time }}</time>
+                <div>
+                  <h4>{{ task.title }}</h4>
+                  <p>{{ task.desc }}</p>
+                </div>
+                <span class="task-state">{{ task.done ? 'DONE' : 'WAIT' }}</span>
+              </article>
+            </div>
           </div>
         </section>
 
@@ -384,33 +547,6 @@
           </div>
         </section>
 
-        <section v-if="activePanel === 'profile'" class="module-board ark-board">
-          <div class="simple-head">
-            <div>
-              <span class="ark-kicker">PROFILE / HOME</span>
-              <h3>个人主页</h3>
-            </div>
-            <button type="button" class="outline-button" @click="loadProfile">同步资料</button>
-          </div>
-
-          <div class="profile-home">
-            <article class="avatar-card">
-              <span class="avatar-ring">{{ profile.nickname.slice(0, 1).toUpperCase() }}</span>
-              <h4>{{ profile.nickname }}</h4>
-              <p>{{ profile.bio }}</p>
-              <div class="profile-rank">
-                <b>LV.{{ level }}</b>
-                <small>{{ profile.email || '未绑定邮箱' }}</small>
-              </div>
-            </article>
-            <article v-for="item in profileModules" :key="item.title" @click="activePanel = item.target">
-              <span>{{ item.code }}</span>
-              <h4>{{ item.title }}</h4>
-              <p>{{ item.text }}</p>
-            </article>
-          </div>
-        </section>
-
         <section v-if="activePanel === 'settings'" class="module-board ark-board">
           <div class="simple-head">
             <div>
@@ -504,9 +640,12 @@ import {
   getCurrentUserProfile,
   listStudyPlans,
   loginUser,
+  registerUser,
+  resolveAssetUrl,
   updateCurrentUserProfile,
   updateStudyPlan,
   updateStudyPlanStatus,
+  uploadCurrentUserProfileImage,
 } from './api'
 
 const nowTime = () =>
@@ -526,14 +665,16 @@ export default {
       loading: false,
       isLoggedIn: Boolean(getAuthToken()),
       message: { type: '', text: '' },
+      authMode: 'login',
       authForm: {
         username: 'ADMIN',
         password: '',
         email: '',
       },
-      activePanel: 'home',
+      activePanel: 'profile',
       navItems: [
-        { id: 'home', label: '个人主页', icon: 'HM' },
+        { id: 'profile', label: '个人主页', icon: 'PR' },
+        { id: 'dashboard', label: '学习控制台', icon: 'HM' },
         { id: 'resources', label: '学习资料', icon: 'RS' },
         { id: 'cards', label: '知识卡片', icon: 'CD' },
         { id: 'practice', label: '题目练习', icon: 'TR' },
@@ -677,6 +818,12 @@ export default {
         email: '',
         bio: '把资料、卡片、练习与复盘串成自己的学习控制台。',
       },
+      profileDiy: {
+        avatarUrl: '',
+        backgroundUrl: '',
+        signature: '把知识整理成自己的节奏。',
+        coverText: '今日状态：轻装上阵',
+      },
       passwordForm: { oldPassword: '', newPassword: '', confirmPassword: '' },
       profileMessage: '',
     }
@@ -731,10 +878,10 @@ export default {
     },
     homeCards() {
       return [
+        { id: 'profile', code: '00', title: '个人主页', text: '进入独立主页，编辑名字、头像与签名。' },
         { id: 'resources', code: '01', title: '资源中枢', text: '整理文件、星标重点、快速定位最近学习。' },
         { id: 'cards', code: '02', title: '记忆卡组', text: '把散乱概念压缩成可复习的卡片。' },
-        { id: 'practice', code: '03', title: '训练队列', text: '即时答题、判断正确性、沉淀错题。' },
-        { id: 'plan', code: '04', title: '今日路线', text: '用简洁计划把学习节奏固定下来。' },
+        { id: 'plan', code: '03', title: '今日路线', text: '用简洁计划把学习节奏固定下来。' },
       ]
     },
     todayFocus() {
@@ -762,6 +909,20 @@ export default {
     level() {
       return Math.max(1, Math.ceil((this.cards.length + this.resources.length + this.plans.filter((item) => item.done).length) / 3))
     },
+    profileName() {
+      return this.profileForm.nickname || this.profile.nickname || 'ToveloKno'
+    },
+    profileCoverStyle() {
+      return this.profileDiy.backgroundUrl
+        ? { '--profile-cover-image': `url("${this.profileBackgroundSrc}")` }
+        : {}
+    },
+    profileAvatarSrc() {
+      return resolveAssetUrl(this.profileDiy.avatarUrl)
+    },
+    profileBackgroundSrc() {
+      return resolveAssetUrl(this.profileDiy.backgroundUrl)
+    },
   },
   mounted() {
     if (this.isLoggedIn) {
@@ -777,24 +938,41 @@ export default {
     },
   },
   methods: {
+    setAuthMode(mode) {
+      this.authMode = mode
+      this.message = { type: '', text: '' }
+    },
     async submitAuth() {
       if (!this.authForm.username || !this.authForm.password) {
         this.message = { type: 'error', text: '请输入用户名和密码' }
         return
       }
+      if (this.authMode === 'register' && this.authForm.password.length < 6) {
+        this.message = { type: 'error', text: '密码至少需要 6 位' }
+        return
+      }
       this.loading = true
       this.message = { type: '', text: '' }
       try {
+        if (this.authMode === 'register') {
+          await registerUser({
+            username: this.authForm.username,
+            password: this.authForm.password,
+            email: this.authForm.email || undefined,
+          })
+        }
         await loginUser({
           username: this.authForm.username,
           password: this.authForm.password,
-          email: this.authForm.email || undefined,
         })
         this.isLoggedIn = true
         this.message = { type: 'success', text: '' }
         await this.loadProfile()
       } catch (error) {
-        this.message = { type: 'error', text: error.response?.data?.message || '登录失败' }
+        this.message = {
+          type: 'error',
+          text: error.response?.data?.message || (this.authMode === 'register' ? '注册失败' : '登录失败'),
+        }
       } finally {
         this.loading = false
       }
@@ -802,7 +980,7 @@ export default {
     handleLogout() {
       clearAuthToken()
       this.isLoggedIn = false
-      this.activePanel = 'home'
+      this.activePanel = 'profile'
     },
     async loadProfile() {
       try {
@@ -812,8 +990,12 @@ export default {
           nickname: data.nickname || data.username || this.profile.nickname,
           email: data.email || this.profile.email,
           bio: data.bio || data.description || this.profile.bio,
+          avatar: data.avatar || this.profile.avatar,
+          profileBackground: data.profileBackground || this.profile.profileBackground,
         }
         this.profileForm = { ...this.profile }
+        this.profileDiy.avatarUrl = data.avatar || this.profileDiy.avatarUrl
+        this.profileDiy.backgroundUrl = data.profileBackground || this.profileDiy.backgroundUrl
       } catch {
         this.profileForm = { ...this.profile }
       }
@@ -1032,12 +1214,55 @@ export default {
     },
     async saveProfile() {
       try {
-        await updateCurrentUserProfile(this.profileForm)
+        const response = await updateCurrentUserProfile({
+          ...this.profileForm,
+          avatar: this.profileDiy.avatarUrl || null,
+          profileBackground: this.profileDiy.backgroundUrl || null,
+        })
+        const data = response.data?.data || {}
+        this.profileDiy.avatarUrl = data.avatar || this.profileDiy.avatarUrl
+        this.profileDiy.backgroundUrl = data.profileBackground || this.profileDiy.backgroundUrl
       } catch {
         // 后端未启动或接口未完全实现时，仍保留前端本地预览。
       }
       this.profile = { ...this.profileForm }
       this.profileMessage = '资料已保存'
+      setTimeout(() => {
+        this.profileMessage = ''
+      }, 1800)
+    },
+    async uploadProfileImage(event, type) {
+      const file = event.target.files?.[0]
+      event.target.value = ''
+      if (!file) return
+      try {
+        const response = await uploadCurrentUserProfileImage(file, type)
+        const data = response.data?.data || {}
+        const url = data.url
+        if (type === 'background') {
+          this.profileDiy.backgroundUrl = url
+          this.profile.profileBackground = url
+          this.profileForm.profileBackground = url
+        } else {
+          this.profileDiy.avatarUrl = url
+          this.profile.avatar = url
+          this.profileForm.avatar = url
+        }
+        if (data.user) {
+          this.profile = {
+            ...this.profile,
+            nickname: data.user.nickname || data.user.username || this.profile.nickname,
+            email: data.user.email || this.profile.email,
+            bio: data.user.bio || this.profile.bio,
+            avatar: data.user.avatar || this.profile.avatar,
+            profileBackground: data.user.profileBackground || this.profile.profileBackground,
+          }
+          this.profileForm = { ...this.profile }
+        }
+        this.profileMessage = type === 'background' ? '主页背景已上传' : '头像已上传'
+      } catch (error) {
+        this.profileMessage = error.response?.data?.message || '图片上传失败'
+      }
       setTimeout(() => {
         this.profileMessage = ''
       }, 1800)

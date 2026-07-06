@@ -5,9 +5,22 @@ const TOKEN_KEY = 'tovelokno_token'
 
 // 所有前端接口请求都建议复用这个 axios 实例，避免每个页面重复配置 baseURL。
 const api = axios.create({
-  baseURL: 'http://localhost:8080/api',
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api',
   timeout: 8000,
 })
+
+const API_BASE_URL = api.defaults.baseURL || ''
+const ASSET_BASE_URL = API_BASE_URL.replace(/\/api\/?$/, '')
+
+export function resolveAssetUrl(url) {
+  if (!url || /^(https?:)?\/\//.test(url) || url.startsWith('data:') || url.startsWith('blob:')) {
+    return url
+  }
+  if (url.startsWith('/')) {
+    return `${ASSET_BASE_URL}${url}`
+  }
+  return url
+}
 
 // 请求发出前自动带上登录 token。
 // 后续业务模块通过 api.get/api.post 调接口时，不需要手动写 Authorization。
@@ -75,6 +88,16 @@ export function getCurrentUserProfile() {
 // 修改当前登录用户资料。
 export function updateCurrentUserProfile(data) {
   return api.put('/users/me/profile', data)
+}
+
+// 上传当前用户头像或个人主页背景图，type 为 avatar/background。
+export function uploadCurrentUserProfileImage(file, type = 'avatar') {
+  const formData = new FormData()
+  formData.append('file', file)
+  formData.append('type', type)
+  return api.post('/users/me/profile-image', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
 }
 
 // 修改当前登录用户密码。

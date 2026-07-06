@@ -44,9 +44,21 @@ public class User {
     @Column(unique = true, length = 100)
     private String email;
 
+    // 个人主页展示昵称。
+    @Column(length = 80)
+    private String nickname;
+
+    // 个人主页简介。
+    @Column(length = 500)
+    private String bio;
+
     // 头像地址，先保存字符串路径或 URL。
     @Column(length = 255)
     private String avatar;
+
+    // 个人主页背景图地址，保存上传后的静态访问路径。
+    @Column(name = "profile_background", length = 255)
+    private String profileBackground;
 
     // 账号状态：1 正常，0 禁用。
     @Column(nullable = false)
@@ -115,12 +127,36 @@ public class User {
         this.email = email;
     }
 
+    public String getNickname() {
+        return nickname;
+    }
+
+    public void setNickname(String nickname) {
+        this.nickname = nickname;
+    }
+
+    public String getBio() {
+        return bio;
+    }
+
+    public void setBio(String bio) {
+        this.bio = bio;
+    }
+
     public String getAvatar() {
         return avatar;
     }
 
     public void setAvatar(String avatar) {
         this.avatar = avatar;
+    }
+
+    public String getProfileBackground() {
+        return profileBackground;
+    }
+
+    public void setProfileBackground(String profileBackground) {
+        this.profileBackground = profileBackground;
     }
 
     public Integer getStatus() {
