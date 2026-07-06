@@ -1,0 +1,11 @@
+{
+	"folders": [
+		{
+			"name": "ToveloKno",
+			"path": "../../.."
+		}
+	],
+	"settings": {
+		"java.compile.nullAnalysis.mode": "automatic"
+	}
+}

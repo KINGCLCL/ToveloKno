@@ -3,9 +3,11 @@ package backend.backend.common;
 import jakarta.validation.ConstraintViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 /**
  * 全局异常处理器。
@@ -33,6 +35,14 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ConstraintViolationException.class)
     public ResponseEntity<ApiResponse<Void>> handleConstraintViolation(ConstraintViolationException exception) {
         return fail(HttpStatus.BAD_REQUEST, exception.getMessage());
+    }
+
+    /**
+     * 处理枚举、数字等参数格式错误，避免错误输入被兜底成500。
+     */
+    @ExceptionHandler({MethodArgumentTypeMismatchException.class, HttpMessageNotReadableException.class})
+    public ResponseEntity<ApiResponse<Void>> handleUnreadableRequest(Exception exception) {
+        return fail(HttpStatus.BAD_REQUEST, "请求参数格式不正确");
     }
 
     /**

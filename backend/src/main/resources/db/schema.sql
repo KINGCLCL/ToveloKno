@@ -44,10 +44,12 @@ CREATE TABLE IF NOT EXISTS category (
     name VARCHAR(80) NOT NULL,
     description VARCHAR(255),
     parent_id BIGINT,
+    active TINYINT(1) NOT NULL DEFAULT 1,
+    sort_order INT NOT NULL DEFAULT 0,
     created_by BIGINT,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    UNIQUE KEY uk_category_name_parent (name, parent_id),
+    KEY idx_category_owner_parent (created_by, parent_id, sort_order, name),
     CONSTRAINT fk_category_parent FOREIGN KEY (parent_id) REFERENCES category (id) ON DELETE SET NULL,
     CONSTRAINT fk_category_user FOREIGN KEY (created_by) REFERENCES user (id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -55,10 +57,12 @@ CREATE TABLE IF NOT EXISTS category (
 -- Tag table: marks resources and knowledge cards with searchable labels.
 CREATE TABLE IF NOT EXISTS tag (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
-    name VARCHAR(50) NOT NULL UNIQUE,
+    name VARCHAR(50) NOT NULL,
     description VARCHAR(255),
     created_by BIGINT,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    KEY idx_tag_owner_name (created_by, name),
     CONSTRAINT fk_tag_user FOREIGN KEY (created_by) REFERENCES user (id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -110,17 +114,24 @@ CREATE TABLE IF NOT EXISTS knowledge_card (
 CREATE TABLE IF NOT EXISTS question (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     content TEXT NOT NULL,
-    question_type VARCHAR(30) NOT NULL COMMENT 'single_choice, true_false',
+    question_type VARCHAR(30) NOT NULL COMMENT 'SINGLE_CHOICE, MULTIPLE_CHOICE, TRUE_FALSE, FILL_BLANK, SHORT_ANSWER',
     options_json JSON,
-    correct_answer VARCHAR(255) NOT NULL,
+    correct_answer VARCHAR(1000) NOT NULL,
     analysis TEXT,
     difficulty TINYINT NOT NULL DEFAULT 3 COMMENT '1 easiest, 5 hardest',
+    subject VARCHAR(80),
+    knowledge_point VARCHAR(80),
+    status VARCHAR(20) NOT NULL DEFAULT 'DRAFT' COMMENT 'DRAFT, PUBLISHED',
     category_id BIGINT,
-    created_by BIGINT,
+    created_by BIGINT NOT NULL,
+    deleted TINYINT(1) NOT NULL DEFAULT 0,
+    deleted_at DATETIME,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    KEY idx_question_owner_deleted_updated (created_by, deleted, updated_at),
+    KEY idx_question_filter (created_by, status, question_type, difficulty),
     CONSTRAINT fk_question_category FOREIGN KEY (category_id) REFERENCES category (id) ON DELETE SET NULL,
-    CONSTRAINT fk_question_user FOREIGN KEY (created_by) REFERENCES user (id) ON DELETE SET NULL
+    CONSTRAINT fk_question_user FOREIGN KEY (created_by) REFERENCES user (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- Answer record table: stores every submitted answer for later statistics.
@@ -128,9 +139,11 @@ CREATE TABLE IF NOT EXISTS answer_record (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     user_id BIGINT NOT NULL,
     question_id BIGINT NOT NULL,
-    user_answer VARCHAR(255) NOT NULL,
+    user_answer VARCHAR(1000) NOT NULL,
     is_correct TINYINT NOT NULL DEFAULT 0 COMMENT '1 correct, 0 wrong',
+    practice_mode VARCHAR(30) NOT NULL DEFAULT 'free',
     answered_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    KEY idx_answer_user_time (user_id, answered_at),
     CONSTRAINT fk_answer_user FOREIGN KEY (user_id) REFERENCES user (id) ON DELETE CASCADE,
     CONSTRAINT fk_answer_question FOREIGN KEY (question_id) REFERENCES question (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -147,6 +160,25 @@ CREATE TABLE IF NOT EXISTS wrong_question (
     UNIQUE KEY uk_wrong_question (user_id, question_id),
     CONSTRAINT fk_wrong_user FOREIGN KEY (user_id) REFERENCES user (id) ON DELETE CASCADE,
     CONSTRAINT fk_wrong_question FOREIGN KEY (question_id) REFERENCES question (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Per-user question bank display and practice preferences.
+CREATE TABLE IF NOT EXISTS question_bank_setting (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    user_id BIGINT NOT NULL,
+    bank_name VARCHAR(100) NOT NULL DEFAULT '我的题库',
+    description VARCHAR(500),
+    member_edit TINYINT(1) NOT NULL DEFAULT 1,
+    member_export TINYINT(1) NOT NULL DEFAULT 1,
+    review_required TINYINT(1) NOT NULL DEFAULT 0,
+    practice_count INT NOT NULL DEFAULT 10,
+    default_difficulty VARCHAR(20) NOT NULL DEFAULT '中等',
+    sort_mode VARCHAR(20) NOT NULL DEFAULT '随机排序',
+    show_answer VARCHAR(20) NOT NULL DEFAULT '立即显示',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_question_bank_setting_user (user_id),
+    CONSTRAINT fk_question_bank_setting_user FOREIGN KEY (user_id) REFERENCES user (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- Study plan table: tracks daily or staged learning tasks.
