@@ -6,6 +6,7 @@ import backend.backend.common.ApiResponse;
 import backend.backend.dto.ChangePasswordRequest;
 import backend.backend.dto.LoginRequest;
 import backend.backend.dto.LoginResponse;
+import backend.backend.dto.ProfileImageUploadResponse;
 import backend.backend.dto.RegisterRequest;
 import backend.backend.dto.UpdateUserProfileRequest;
 import backend.backend.dto.UserResponse;
@@ -17,7 +18,9 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 /**
  * 用户模块接口入口。
@@ -71,6 +74,17 @@ public class UserController {
             @CurrentUser AuthenticatedUser currentUser,
             @Valid @RequestBody UpdateUserProfileRequest request) {
         return ApiResponse.success("修改成功", userService.updateCurrentUserProfile(currentUser, request));
+    }
+
+    /**
+     * 上传当前用户头像或个人主页背景图。
+     */
+    @PostMapping("/me/profile-image")
+    public ApiResponse<ProfileImageUploadResponse> uploadCurrentUserProfileImage(
+            @CurrentUser AuthenticatedUser currentUser,
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(defaultValue = "avatar") String type) {
+        return ApiResponse.success("上传成功", userService.uploadCurrentUserProfileImage(currentUser, file, type));
     }
 
     /**

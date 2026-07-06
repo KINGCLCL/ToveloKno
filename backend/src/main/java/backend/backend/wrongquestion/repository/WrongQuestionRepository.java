@@ -4,6 +4,7 @@ import backend.backend.wrongquestion.entity.WrongQuestion;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -12,12 +13,13 @@ import java.util.Optional;
 /**
  * 错题本数据访问层。
  */
+@Repository("wrongQuestionBookRepository")
 public interface WrongQuestionRepository extends JpaRepository<WrongQuestion, Long> {
 
     Optional<WrongQuestion> findByIdAndUserId(Long id, Long userId);
 
     @Query(value = """
-            SELECT 
+            SELECT
                 w.id AS id,
                 w.question_id AS questionId,
                 q.content AS content,

@@ -15,7 +15,7 @@ import java.time.LocalDateTime;
  *
  * 标签用于给资源和知识卡片加上“重点”“易错”“考试”等标记。
  */
-@Entity
+@Entity(name = "ManagedTag")
 @Table(name = "tag")
 public class Tag {
 

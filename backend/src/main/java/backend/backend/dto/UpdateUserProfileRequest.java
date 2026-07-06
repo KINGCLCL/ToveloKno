@@ -14,9 +14,19 @@ public class UpdateUserProfileRequest {
     @Email(message = "邮箱格式不正确")
     private String email;
 
+    @Size(max = 80, message = "昵称长度不能超过80")
+    private String nickname;
+
+    @Size(max = 500, message = "个人简介不能超过500字")
+    private String bio;
+
     // 头像先保存 URL 或文件路径，长度限制和数据库字段保持一致。
     @Size(max = 255, message = "头像地址长度不能超过255")
     private String avatar;
+
+    // 个人主页背景图地址。
+    @Size(max = 255, message = "主页背景地址长度不能超过255")
+    private String profileBackground;
 
     public String getEmail() {
         return email;
@@ -26,11 +36,35 @@ public class UpdateUserProfileRequest {
         this.email = email;
     }
 
+    public String getNickname() {
+        return nickname;
+    }
+
+    public void setNickname(String nickname) {
+        this.nickname = nickname;
+    }
+
+    public String getBio() {
+        return bio;
+    }
+
+    public void setBio(String bio) {
+        this.bio = bio;
+    }
+
     public String getAvatar() {
         return avatar;
     }
 
     public void setAvatar(String avatar) {
         this.avatar = avatar;
+    }
+
+    public String getProfileBackground() {
+        return profileBackground;
+    }
+
+    public void setProfileBackground(String profileBackground) {
+        this.profileBackground = profileBackground;
     }
 }

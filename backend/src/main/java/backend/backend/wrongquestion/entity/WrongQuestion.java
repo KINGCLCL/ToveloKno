@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
 /**
  * 错题本实体类，对应数据库 wrong_question 表。
  */
-@Entity
+@Entity(name = "WrongQuestionBookEntry")
 @Table(name = "wrong_question")
 public class WrongQuestion {
 

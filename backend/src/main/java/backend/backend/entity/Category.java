@@ -17,7 +17,7 @@ import java.time.LocalDateTime;
  * 分类用于给学习资源、知识卡片、题目按学科或课程分组。
  * 这里用 parentId 表示父分类，方便后续做“高数/极限”这种层级分类。
  */
-@Entity
+@Entity(name = "ManagedCategory")
 @Table(name = "category")
 public class Category {
 

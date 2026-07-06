@@ -2,12 +2,16 @@ package backend.backend.config;
 
 import backend.backend.auth.AuthInterceptor;
 import backend.backend.auth.CurrentUserArgumentResolver;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.method.support.HandlerMethodArgumentResolver;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
+import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -21,10 +25,21 @@ public class CorsConfig implements WebMvcConfigurer {
 
     private final AuthInterceptor authInterceptor;
     private final CurrentUserArgumentResolver currentUserArgumentResolver;
+    private final String[] allowedOrigins;
+    private final Path profileUploadDir;
 
-    public CorsConfig(AuthInterceptor authInterceptor, CurrentUserArgumentResolver currentUserArgumentResolver) {
+    public CorsConfig(
+            AuthInterceptor authInterceptor,
+            CurrentUserArgumentResolver currentUserArgumentResolver,
+            @Value("${app.cors.allowed-origins:http://localhost:5173,http://127.0.0.1:5173}") String allowedOrigins,
+            @Value("${app.upload.profile-dir:uploads/profile}") String profileUploadDir) {
         this.authInterceptor = authInterceptor;
         this.currentUserArgumentResolver = currentUserArgumentResolver;
+        this.allowedOrigins = Arrays.stream(allowedOrigins.split(","))
+                .map(String::trim)
+                .filter(origin -> !origin.isEmpty())
+                .toArray(String[]::new);
+        this.profileUploadDir = Path.of(profileUploadDir).toAbsolutePath().normalize();
     }
 
     /**
@@ -35,10 +50,20 @@ public class CorsConfig implements WebMvcConfigurer {
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/api/**")
-                .allowedOrigins("http://localhost:5173", "http://127.0.0.1:5173")
+                .allowedOrigins(allowedOrigins)
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                 .allowedHeaders("*")
                 .exposedHeaders("Authorization");
+        registry.addMapping("/uploads/**")
+                .allowedOrigins(allowedOrigins)
+                .allowedMethods("GET")
+                .allowedHeaders("*");
+    }
+
+    @Override
+    public void addResourceHandlers(ResourceHandlerRegistry registry) {
+        registry.addResourceHandler("/uploads/profile/**")
+                .addResourceLocations(profileUploadDir.toUri().toString() + "/");
     }
 
     /**
