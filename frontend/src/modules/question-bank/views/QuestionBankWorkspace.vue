@@ -37,7 +37,11 @@
         <button class="bank-mobile-menu" type="button" aria-label="切换侧栏" @click="sidebarCollapsed = !sidebarCollapsed">
           <LineIcon name="menu" />
         </button>
-        <div class="bank-breadcrumb"><span>首页</span><b>/</b><strong>{{ activeNavLabel }}</strong></div>
+        <button class="bank-back-home" type="button" @click="emit('back-home')">
+          <LineIcon name="chevron-left" />
+          <span>学习控制台</span>
+        </button>
+        <div class="bank-breadcrumb"><span>题库工作台</span><b>/</b><strong>{{ activeNavLabel }}</strong></div>
         <label class="bank-global-search">
           <LineIcon name="search" />
           <input v-model.trim="globalKeyword" type="search" placeholder="搜索题目、知识点、题库..." />
@@ -47,8 +51,11 @@
           <LineIcon name="bell" /><i />
         </button>
         <button class="bank-user" type="button" @click="handleUserButton">
-          <span class="bank-avatar">{{ userInitial }}</span>
-          <span><strong>{{ currentUsername }}</strong><small>{{ authenticated ? '学习者' : '未登录' }}</small></span>
+          <span class="bank-avatar">
+            <img v-if="avatarSrc" :src="avatarSrc" alt="头像" />
+            <b v-else>{{ userInitial }}</b>
+          </span>
+          <span><strong>{{ displayName }}</strong><small>{{ authenticated ? currentUsername : '未登录' }}</small></span>
           <LineIcon name="chevron-down" />
         </button>
         <div v-if="profileOpen" class="bank-profile-menu">
@@ -495,6 +502,7 @@ import {
   loginUser,
   logoutUser,
   registerUser,
+  resolveAssetUrl,
 } from '../../../api'
 import LineIcon from '../components/LineIcon.vue'
 import {
@@ -533,6 +541,7 @@ import {
   updateQuestionBankSettings,
 } from '../questionBankApi'
 
+const emit = defineEmits(['back-home'])
 const initialNav = window.location.hash.slice(1)
 const activeNav = ref(navigationItems.some((item) => item.id === initialNav) ? initialNav : 'questions')
 const sidebarCollapsed = ref(false)
@@ -551,6 +560,8 @@ const selectedQuestionIds = ref([])
 const toastMessage = ref('')
 const authenticated = ref(Boolean(getAuthToken()))
 const currentUsername = ref('访客')
+const currentNickname = ref('')
+const userAvatarUrl = ref('')
 const authModalOpen = ref(!authenticated.value)
 const authMode = ref('login')
 const authSubmitting = ref(false)
@@ -668,7 +679,9 @@ const pageContent = {
 
 const activeNavLabel = computed(() => navigationItems.find((item) => item.id === activeNav.value)?.label)
 const pageMeta = computed(() => pageContent[activeNav.value])
-const userInitial = computed(() => currentUsername.value.slice(0, 1).toUpperCase() || '访')
+const avatarSrc = computed(() => resolveAssetUrl(userAvatarUrl.value))
+const displayName = computed(() => currentNickname.value || currentUsername.value)
+const userInitial = computed(() => displayName.value.slice(0, 1).toUpperCase() || '访')
 const questionStatCards = computed(() => [
   { label: '题目总数', value: questionStatsData.total.toLocaleString(), unit: '题', note: '当前题库有效题目', icon: 'book-open', tone: 'blue' },
   { label: '已发布', value: questionStatsData.published.toLocaleString(), unit: '题', note: ratioNote(questionStatsData.published), icon: 'check-square', tone: 'green' },
@@ -1039,7 +1052,7 @@ async function initializeSession() {
   }
   try {
     const response = await getCurrentUserProfile()
-    currentUsername.value = response.data?.data?.username || '学习者'
+    applyProfile(response.data?.data)
     await Promise.all([
       refreshQuestionData(),
       loadPracticeDashboard(),
@@ -1056,6 +1069,8 @@ function handleApiFailure(error, fallback) {
     logoutUser()
     authenticated.value = false
     currentUsername.value = '访客'
+    currentNickname.value = ''
+    userAvatarUrl.value = ''
     questionRows.value = []
     categoryRows.value = []
     categoryTree.value = []
@@ -1101,16 +1116,13 @@ async function handleAuthSubmit() {
       password: authForm.password,
     })
     currentUsername.value = response.data?.data?.user?.username || authForm.username
+    currentNickname.value = currentUsername.value
+    userAvatarUrl.value = ''
     authenticated.value = true
     authModalOpen.value = false
     authForm.password = ''
     notify(authMode.value === 'register' ? '注册并登录成功' : '登录成功')
-    await Promise.all([
-      refreshQuestionData(),
-      loadPracticeDashboard(),
-      loadAnalytics(),
-      loadQuestionBankSettings(),
-    ])
+    await initializeSession()
   } catch (error) {
     authError.value = readApiError(error, authMode.value === 'register' ? '注册失败' : '登录失败')
   } finally {
@@ -1118,10 +1130,18 @@ async function handleAuthSubmit() {
   }
 }
 
+function applyProfile(profile = {}) {
+  currentUsername.value = profile.username || '学习者'
+  currentNickname.value = profile.nickname || profile.username || '学习者'
+  userAvatarUrl.value = profile.avatarUrl || profile.avatar || ''
+}
+
 function handleLogout() {
   logoutUser()
   authenticated.value = false
   currentUsername.value = '访客'
+  currentNickname.value = ''
+  userAvatarUrl.value = ''
   profileOpen.value = false
   questionRows.value = []
   practiceQuestions.value = []

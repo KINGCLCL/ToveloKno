@@ -105,6 +105,41 @@ export function changeCurrentUserPassword(data) {
   return api.put('/users/me/password', data)
 }
 
+export function listLearningResources(params = {}) {
+  return api.get('/resources', { params })
+}
+
+export function getLearningResource(resourceId) {
+  return api.get(`/resources/${resourceId}`)
+}
+
+export function uploadLearningResource(file, data = {}) {
+  const formData = new FormData()
+  formData.append('file', file)
+  if (data.name) formData.append('name', data.name)
+  if (data.description) formData.append('description', data.description)
+  return api.post('/resources', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 120000,
+  })
+}
+
+export function updateLearningResourceProgress(resourceId, data) {
+  return api.put(`/resources/${resourceId}/progress`, data)
+}
+
+export function updateLearningResourceAnnotations(resourceId, annotations) {
+  return api.put(`/resources/${resourceId}/annotations`, { annotations })
+}
+
+export function toggleLearningResourceFavorite(resourceId) {
+  return api.put(`/resources/${resourceId}/favorite`)
+}
+
+export function deleteLearningResource(resourceId) {
+  return api.delete(`/resources/${resourceId}`)
+}
+
 // 兼容按 userId 查询资料的接口，普通用户只能查自己。
 export function getUserProfile(userId) {
   return api.get(`/users/${userId}`)
@@ -198,6 +233,21 @@ export function deleteStudyPlan(planId) {
 // 修改学习计划状态（pending / completed / cancelled）。
 export function updateStudyPlanStatus(planId, status) {
   return api.put(`/study-plans/${planId}/status`, { status })
+}
+
+// 查询错题本列表，mastered 可选：true / false。
+export function listWrongQuestions(params = {}) {
+  return api.get('/wrong-questions', { params })
+}
+
+// 标记错题为已掌握。
+export function markWrongQuestionMastered(wrongQuestionId) {
+  return api.put(`/wrong-questions/${wrongQuestionId}/mastered`)
+}
+
+// 将错题移出错题本。
+export function deleteWrongQuestion(wrongQuestionId) {
+  return api.delete(`/wrong-questions/${wrongQuestionId}`)
 }
 
 // 默认导出 axios 实例，后续题库、错题本、计划、统计模块可以直接复用。

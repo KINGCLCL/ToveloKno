@@ -4,7 +4,7 @@
       <div class="login-book">
         <section class="login-art" aria-label="ToveloKno">
           <div class="brand-mark">
-            <span class="hexagon"></span>
+            <span class="brand-line-mark"></span>
             <strong>ToveloKno</strong>
             <small>STUDY COMMAND UI</small>
           </div>
@@ -87,7 +87,7 @@
 
     <section v-else-if="activePanel === 'profile'" class="profile-screen">
       <header class="profile-topbar">
-        <button type="button" @click="activePanel = 'dashboard'">返回学习控制台</button>
+        <button type="button" @click="switchPanel('home')">返回首页</button>
         <strong>ToveloKno</strong>
         <button type="button" @click="handleLogout">退出登录</button>
       </header>
@@ -128,6 +128,9 @@
               <span><b>{{ cards.length }}</b>卡片</span>
               <span><b>{{ planProgress }}%</b>进度</span>
             </div>
+            <button class="profile-edit-banner-button" type="button" @click="openBannerEditor">
+              修改推荐画幅
+            </button>
           </article>
 
           <form class="profile-editor" @submit.prevent="saveProfile">
@@ -161,105 +164,181 @@
             </label>
             <button class="primary-button soft" type="submit">保存主页资料</button>
           </form>
+
+          <section v-if="showBannerEditor && bannerDrafts[editingBannerIndex]" class="banner-editor-panel">
+            <header>
+              <div>
+                <span>HOME BANNER</span>
+                <strong>推荐画幅编辑</strong>
+              </div>
+              <button type="button" @click="showBannerEditor = false">收起</button>
+            </header>
+
+            <div class="banner-editor-tabs">
+              <button
+                v-for="(slide, index) in bannerDrafts"
+                :key="slide.id"
+                type="button"
+                :class="{ active: editingBannerIndex === index }"
+                @click="selectBannerDraft(index)"
+              >
+                {{ index + 1 }}
+              </button>
+            </div>
+
+            <form class="banner-editor-form" @submit.prevent="saveHomeBanners">
+              <label>
+                <span>图片介绍文字</span>
+                <input v-model.trim="bannerDrafts[editingBannerIndex].text" placeholder="默认留空，只在画幅底部显示一行" />
+              </label>
+              <label class="banner-editor-wide">
+                <span>背景图片</span>
+                <div class="banner-upload-row">
+                  <label class="banner-upload-button">
+                    <input type="file" accept="image/*" @change="uploadHomeBannerImage" />
+                    <span>本地上传</span>
+                  </label>
+                  <button type="button" @click="clearHomeBannerImage">清除</button>
+                </div>
+              </label>
+              <label v-if="bannerDrafts[editingBannerIndex].imageUrl" class="banner-editor-wide">
+                <span>背景预览</span>
+                <div
+                  class="banner-image-preview"
+                  :style="bannerPreviewStyle(bannerDrafts[editingBannerIndex])"
+                  aria-hidden="true"
+                ></div>
+              </label>
+              <section v-if="bannerCrop.active" class="banner-crop-panel">
+                <div class="banner-crop-preview">
+                  <img :src="bannerCrop.source" alt="裁剪预览" :style="bannerCropImageStyle" />
+                </div>
+                <div class="banner-crop-controls">
+                  <label>
+                    <span>缩放</span>
+                    <input v-model.number="bannerCrop.zoom" type="range" min="1" max="2.4" step="0.01" />
+                  </label>
+                  <label>
+                    <span>横向位置</span>
+                    <input v-model.number="bannerCrop.x" type="range" min="0" max="100" step="1" />
+                  </label>
+                  <label>
+                    <span>纵向位置</span>
+                    <input v-model.number="bannerCrop.y" type="range" min="0" max="100" step="1" />
+                  </label>
+                  <div class="banner-crop-actions">
+                    <button class="primary-button soft" type="button" @click="applyBannerCrop">应用裁剪</button>
+                    <button class="outline-button" type="button" @click="cancelBannerCrop">取消</button>
+                  </div>
+                </div>
+              </section>
+              <div class="banner-editor-actions">
+                <button class="primary-button soft" type="submit">保存画幅</button>
+                <button class="outline-button" type="button" @click="resetHomeBanners">恢复默认</button>
+              </div>
+            </form>
+          </section>
         </section>
       </main>
     </section>
 
-    <section v-else class="workspace">
+    <section v-else-if="activePanel === 'practice'" class="question-bank-screen">
+      <QuestionBankWorkspace @back-home="switchPanel('home')" />
+    </section>
+
+    <section v-else-if="activePanel === 'resources'" class="full-module-screen">
+      <LearningResourceWorkspace @back-home="switchPanel('home')" />
+    </section>
+
+    <section v-else-if="activePanel === 'wrong'" class="full-module-screen">
+      <WrongQuestionWorkspace @back-home="switchPanel('home')" @open-module="switchPanel" />
+    </section>
+
+    <section v-else-if="activePanel === 'plan'" class="full-module-screen">
+      <StudyPlanWorkspace @back-home="switchPanel('home')" @open-module="switchPanel" />
+    </section>
+
+    <section v-else :class="['workspace', { 'home-workspace': activePanel === 'home' }]">
       <aside class="sidebar">
         <div class="side-brand">
-          <span class="hexagon"></span>
-          <strong>ToveloKno</strong>
+          <div class="side-identity">
+            <span class="side-avatar">
+              <img v-if="profileAvatarSrc" :src="profileAvatarSrc" alt="头像" />
+              <b v-else>{{ profileName.slice(0, 1).toUpperCase() }}</b>
+            </span>
+            <span class="side-user-copy">
+              <small>当前用户</small>
+              <strong>{{ profileName }}</strong>
+              <em>LV.{{ level }} / {{ resources.length + cards.length }} 项资料</em>
+            </span>
+          </div>
+          <div class="side-brand-name">
+            <strong>ToveloKno</strong>
+            <span>学习终端</span>
+          </div>
+          <div class="side-progress">
+            <span>计划进度 <b>{{ planProgress }}%</b></span>
+            <i><b :style="{ width: `${planProgress}%` }"></b></i>
+          </div>
         </div>
 
         <nav class="module-nav">
-          <button
-            v-for="(item, index) in navItems"
-            :key="item.id"
-            type="button"
-            :class="{ active: activePanel === item.id }"
-            @click="activePanel = item.id"
-          >
-            <span class="nav-icon">{{ item.icon }}</span>
-            <span>{{ item.label }}</span>
-            <em>{{ String(index + 1).padStart(2, '0') }}</em>
-          </button>
+          <section v-for="group in navGroups" :key="group.title" class="nav-group">
+            <p>{{ group.title }}</p>
+            <button
+              v-for="item in group.items"
+              :key="item.id"
+              type="button"
+              :class="{ active: activePanel === item.id }"
+              @click="switchPanel(item.id)"
+            >
+              <em>{{ item.number }}</em>
+              <span>{{ item.label }}</span>
+              <i></i>
+            </button>
+          </section>
         </nav>
 
-        <button class="logout-button" type="button" @click="handleLogout">退出登录</button>
+        <button class="logout-button" type="button" @click="handleLogout"><span>退出登录</span><b>09</b></button>
       </aside>
 
-      <section class="content-frame">
-        <section v-if="activePanel === 'dashboard'" class="module-board ark-board home-board">
-          <div class="home-command-strip">
-            <div>
-              <span class="ark-kicker">ARK-LIGHT / STUDY OPS</span>
-              <h3>{{ profile.nickname }} 的学习控制台</h3>
-              <p>今日任务、资源入口与复盘状态集中调度。</p>
-            </div>
-            <div class="home-readout">
-              <span>PLAN SYNC</span>
-              <strong>{{ planProgress }}%</strong>
-              <i :style="{ width: `${planProgress}%` }"></i>
-            </div>
-          </div>
-
-          <div class="home-ops-layout">
-            <div class="ops-grid command-grid">
-              <article
-                v-for="item in homeCards"
-                :key="item.id"
-                class="ops-card"
-                :class="{ selected: activePanel === item.id }"
-                @click="activePanel = item.id"
+      <section class="content-frame" :class="{ 'dashboard-frame': activePanel === 'home' }">
+        <Transition name="panel-shift" mode="out-in">
+        <section v-if="activePanel === 'home'" :key="'home'" class="recommend-home">
+          <section class="recommend-carousel" aria-label="推荐画幅">
+            <article
+              class="recommend-slide"
+            >
+              <div
+                class="home-banner-art"
+                :class="{ 'has-image': activeRecommendationSlide.imageUrl }"
+                :style="bannerVisualStyle(activeRecommendationSlide)"
+                aria-hidden="true"
               >
-                <span>{{ item.code }}</span>
-                <h4>{{ item.title }}</h4>
-                <p>{{ item.text }}</p>
-                <b>OPEN</b>
-              </article>
-            </div>
-
-            <aside class="home-status-panel">
-              <span class="ark-kicker">STATUS</span>
-              <strong>{{ resources.length + cards.length + wrongQuestions.length }}</strong>
-              <p>当前学习对象</p>
-              <dl>
-                <div>
-                  <dt>资料</dt>
-                  <dd>{{ resources.length }}</dd>
+              </div>
+              <div class="home-banner-caption">
+                <p v-if="activeRecommendationSlide.text">{{ activeRecommendationSlide.text }}</p>
+                <div class="home-banner-footer">
+                  <div class="banner-dots" aria-label="画幅切换">
+                    <button
+                      v-for="(slide, index) in recommendationSlides"
+                      :key="slide.id"
+                      type="button"
+                      :class="{ active: homeBannerIndex === index }"
+                      @click.stop="setBannerIndex(index)"
+                    ></button>
+                  </div>
+                  <div class="banner-controls">
+                    <button type="button" aria-label="上一张" @click.stop="moveBanner(-1)">‹</button>
+                    <button type="button" aria-label="下一张" @click.stop="moveBanner(1)">›</button>
+                  </div>
                 </div>
-                <div>
-                  <dt>卡片</dt>
-                  <dd>{{ cards.length }}</dd>
-                </div>
-                <div>
-                  <dt>错题</dt>
-                  <dd>{{ wrongQuestions.length }}</dd>
-                </div>
-              </dl>
-            </aside>
-          </div>
-
-          <div class="home-task-board">
-            <header>
-              <span class="ark-kicker">TODAY QUEUE</span>
-              <strong>{{ todayFocus.filter((task) => task.done).length }} / {{ todayFocus.length }}</strong>
-            </header>
-            <div class="timeline command-timeline">
-              <article v-for="task in todayFocus" :key="task.title" :class="{ done: task.done }">
-                <time>{{ task.time }}</time>
-                <div>
-                  <h4>{{ task.title }}</h4>
-                  <p>{{ task.desc }}</p>
-                </div>
-                <span class="task-state">{{ task.done ? 'DONE' : 'WAIT' }}</span>
-              </article>
-            </div>
-          </div>
+              </div>
+            </article>
+          </section>
         </section>
 
-        <section v-if="activePanel === 'resources'" class="module-board ark-board">
+        <section v-else-if="activePanel === 'resources'" :key="'resources'" class="module-board ark-board">
           <div class="board-toolbar">
             <div>
               <span class="ark-kicker">RESOURCE / INDEX</span>
@@ -345,7 +424,7 @@
           <p class="table-count">共 {{ filteredResources.length }} 项</p>
         </section>
 
-        <section v-if="activePanel === 'cards'" class="module-board ark-board">
+        <section v-else-if="activePanel === 'cards'" :key="'cards'" class="module-board ark-board">
           <div class="simple-head">
             <div>
               <span class="ark-kicker">MEMORY / CARD</span>
@@ -375,154 +454,7 @@
           </div>
         </section>
 
-        <section v-if="activePanel === 'practice'" class="module-board ark-board">
-          <div class="simple-head">
-            <div>
-              <span class="ark-kicker">DRILL / TRAINING</span>
-              <h3>题目练习</h3>
-            </div>
-            <p class="score-chip">正确 {{ practiceScore.correct }} / {{ practiceScore.total }}</p>
-          </div>
-
-          <article class="quiz-panel">
-            <span>第 {{ currentQuestionIndex + 1 }} 题</span>
-            <h4>{{ currentQuestion.title }}</h4>
-            <div class="answer-list">
-              <button
-                v-for="option in currentQuestion.options"
-                :key="option"
-                type="button"
-                :class="answerClass(option)"
-                @click="chooseAnswer(option)"
-              >
-                {{ option }}
-              </button>
-            </div>
-            <p v-if="selectedAnswer" class="analysis-line">{{ currentQuestion.analysis }}</p>
-            <div class="card-actions">
-              <button type="button" @click="prevQuestion">上一题</button>
-              <button type="button" @click="nextQuestion">下一题</button>
-              <button type="button" @click="collectWrongQuestion">加入错题本</button>
-            </div>
-          </article>
-        </section>
-
-        <section v-if="activePanel === 'wrong'" class="module-board ark-board">
-          <div class="simple-head">
-            <div>
-              <span class="ark-kicker">ERROR / REVIEW</span>
-              <h3>错题本</h3>
-            </div>
-            <div class="tabs compact-tabs">
-              <button type="button" :class="{ active: wrongFilter === '全部' }" @click="wrongFilter = '全部'">全部</button>
-              <button type="button" :class="{ active: wrongFilter === '未掌握' }" @click="wrongFilter = '未掌握'">未掌握</button>
-              <button type="button" :class="{ active: wrongFilter === '已掌握' }" @click="wrongFilter = '已掌握'">已掌握</button>
-            </div>
-          </div>
-
-          <div class="wrong-list">
-            <article v-for="item in filteredWrongQuestions" :key="item.id" :class="{ mastered: item.mastered }">
-              <span>{{ item.subject }}</span>
-              <h4>{{ item.title }}</h4>
-              <p>{{ item.note }}</p>
-              <div class="card-actions">
-                <button type="button" @click="item.mastered = !item.mastered">{{ item.mastered ? '标为未掌握' : '已掌握' }}</button>
-                <button type="button" @click="removeWrongQuestion(item.id)">删除</button>
-              </div>
-            </article>
-          </div>
-        </section>
-
-        <section v-if="activePanel === 'plan'" class="module-board ark-board">
-          <div class="simple-head">
-            <div>
-              <span class="ark-kicker">PLAN / ROUTE</span>
-              <h3>学习计划</h3>
-            </div>
-            <strong class="score-chip">{{ planProgress }}%</strong>
-          </div>
-
-          <div class="plan-filter-bar">
-            <select v-model="planFilter.status" @change="refreshPlanFilter">
-              <option value="">全部状态</option>
-              <option value="pending">待完成</option>
-              <option value="completed">已完成</option>
-              <option value="cancelled">已取消</option>
-            </select>
-            <input v-model="planFilter.planDate" type="date" @change="refreshPlanFilter" />
-            <button class="primary-button" type="button" @click="openPlanEditor()">新增计划</button>
-          </div>
-
-          <form class="ark-form inline-form" @submit.prevent="addPlan">
-            <input v-model.trim="planDraft.title" placeholder="计划名称" />
-            <input v-model.trim="planDraft.time" placeholder="时间，如 21:00" />
-            <button class="primary-button" type="submit">快速添加</button>
-          </form>
-
-          <div v-if="planLoading" class="plan-empty">加载中...</div>
-
-          <div v-else-if="plans.length === 0" class="plan-empty">
-            暂无学习计划，点击新增计划开始规划。
-          </div>
-
-          <div v-else class="timeline plan-list">
-            <article v-for="item in plans" :key="item.id" :class="{ done: item.done }">
-              <time>{{ item.time }}</time>
-              <div>
-                <h4>{{ item.title }}</h4>
-                <p>{{ item.content || (item.done ? '已完成，进入复盘区。' : '待执行，保持队列。') }}</p>
-              </div>
-              <div class="card-actions">
-                <button
-                  type="button"
-                  @click="markPlanStatus(item.id, item.done ? 'pending' : 'completed')"
-                >
-                  {{ item.done ? '撤回' : '完成' }}
-                </button>
-                <button v-if="item.status === 'pending'" type="button" @click="markPlanStatus(item.id, 'cancelled')">取消</button>
-                <button type="button" @click="openPlanEditor(item)">编辑</button>
-                <button type="button" @click="removePlan(item.id)">删除</button>
-              </div>
-            </article>
-          </div>
-
-          <div v-if="planTotalPages > 1" class="plan-pagination">
-            <button type="button" :disabled="planPage <= 1" @click="planPage -= 1; loadPlans()">上一页</button>
-            <span>第 {{ planPage }} / {{ planTotalPages }} 页（共 {{ planTotal }} 条）</span>
-            <button type="button" :disabled="planPage >= planTotalPages" @click="planPage += 1; loadPlans()">下一页</button>
-          </div>
-
-          <div v-if="planEditorOpen" class="modal-overlay" @click.self="planEditorOpen = false">
-            <div class="modal-card">
-              <header>
-                <h3>{{ editingPlan ? '编辑计划' : '新增计划' }}</h3>
-              </header>
-              <form class="ark-form settings-form" @submit.prevent="submitPlan">
-                <label>
-                  <span>标题</span>
-                  <input v-model.trim="planForm.title" type="text" placeholder="例如：复习第三章" />
-                </label>
-                <label>
-                  <span>内容</span>
-                  <textarea v-model="planForm.content" rows="4" placeholder="详细描述学习内容，可选"></textarea>
-                </label>
-                <label>
-                  <span>计划日期</span>
-                  <input v-model="planForm.planDate" type="date" />
-                </label>
-                <p v-if="planFormError" class="message-line error">{{ planFormError }}</p>
-                <div class="modal-actions">
-                  <button class="outline-button" type="button" @click="planEditorOpen = false">取消</button>
-                  <button class="primary-button" type="submit" :disabled="planSubmitting">
-                    {{ planSubmitting ? '保存中...' : '保存' }}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </section>
-
-        <section v-if="activePanel === 'stats'" class="module-board ark-board">
+        <section v-else-if="activePanel === 'stats'" :key="'stats'" class="module-board ark-board">
           <div class="simple-head">
             <div>
               <span class="ark-kicker">DATA / OVERVIEW</span>
@@ -547,7 +479,7 @@
           </div>
         </section>
 
-        <section v-if="activePanel === 'settings'" class="module-board ark-board">
+        <section v-else-if="activePanel === 'settings'" :key="'settings'" class="module-board ark-board">
           <div class="simple-head">
             <div>
               <span class="ark-kicker">SYSTEM / SETTINGS</span>
@@ -574,58 +506,75 @@
             </form>
           </div>
         </section>
+        </Transition>
       </section>
 
-      <aside class="detail-panel">
+      <aside v-if="activePanel !== 'home'" class="detail-panel">
         <div class="detail-tabs">
-          <button type="button">详情</button>
+          <button type="button" class="active">详情</button>
           <button type="button">标签</button>
         </div>
 
-        <section class="selected-file">
-          <i :class="['file-icon', selectedResource.tone]">{{ selectedResource.icon }}</i>
-          <div>
-            <h4>{{ selectedResource.name }}</h4>
-            <p>{{ selectedResource.type }} - {{ selectedResource.size }}</p>
+        <Transition name="side-shift" mode="out-in">
+          <div :key="activePanel" class="detail-panel-body">
+            <section class="selected-file">
+              <i :class="['file-icon', sidePanel.tone]">{{ sidePanel.icon }}</i>
+              <div>
+                <h4>{{ sidePanel.title }}</h4>
+                <p>{{ sidePanel.subtitle }}</p>
+              </div>
+              <button v-if="activePanel === 'resources'" type="button" @click="toggleFavorite(selectedResource)">
+                {{ selectedResource.favorite ? '★' : '☆' }}
+              </button>
+            </section>
+
+            <dl class="file-meta">
+              <template v-for="item in sidePanel.meta" :key="item.label">
+                <dt>{{ item.label }}</dt>
+                <dd>{{ item.value }}</dd>
+              </template>
+            </dl>
+
+            <section class="side-tags">
+              <span v-for="tag in sidePanel.tags" :key="tag">{{ tag }}</span>
+            </section>
+
+            <section class="mini-stat">
+              <header>
+                <strong>{{ sidePanel.statTitle }}</strong>
+                <button type="button" @click="switchPanel(sidePanel.statTarget)">更多</button>
+              </header>
+              <div>
+                <span v-for="stat in sidePanel.stats" :key="stat.label"><b>{{ stat.value }}</b>{{ stat.label }}</span>
+              </div>
+            </section>
+
+            <section class="recent-list">
+              <header>
+                <strong>{{ sidePanel.listTitle }}</strong>
+                <button type="button" @click="switchPanel(sidePanel.listTarget)">更多</button>
+              </header>
+              <p v-for="item in sidePanel.items" :key="item.name">
+                <span>{{ item.name }}</span>
+                <em>{{ item.time }}</em>
+              </p>
+            </section>
           </div>
-          <button type="button" @click="toggleFavorite(selectedResource)">{{ selectedResource.favorite ? '★' : '☆' }}</button>
-        </section>
-
-        <dl class="file-meta">
-          <dt>位置</dt>
-          <dd>{{ selectedResource.path }}</dd>
-          <dt>来源</dt>
-          <dd>{{ selectedResource.source }}</dd>
-          <dt>修改时间</dt>
-          <dd>{{ selectedResource.time }}</dd>
-          <dt>描述</dt>
-          <dd>{{ selectedResource.description }}</dd>
-        </dl>
-
-        <section class="mini-stat">
-          <header>
-            <strong>统计</strong>
-            <button type="button" @click="activePanel = 'stats'">更多</button>
-          </header>
-          <div>
-            <span><b>{{ resources.length }}</b>文件数</span>
-            <span><b>{{ cards.length }}</b>卡片</span>
-            <span><b>{{ wrongQuestions.length }}</b>错题</span>
-            <span><b>{{ planProgress }}%</b>进度</span>
-          </div>
-        </section>
-
-        <section class="recent-list">
-          <header>
-            <strong>最近学习</strong>
-            <button type="button" @click="activePanel = 'resources'">更多</button>
-          </header>
-          <p v-for="item in recentStudy" :key="item.name">
-            <span>{{ item.name }}</span>
-            <em>{{ item.time }}</em>
-          </p>
-        </section>
+        </Transition>
       </aside>
+
+      <nav v-if="activePanel !== 'home'" class="module-dock" aria-label="模块快捷连接">
+        <button
+          v-for="item in moduleDock"
+          :key="item.id"
+          type="button"
+          :class="{ active: activePanel === item.id }"
+          @click="switchPanel(item.id)"
+        >
+          <span>{{ item.code }}</span>
+          <strong>{{ item.label }}</strong>
+        </button>
+      </nav>
     </section>
   </main>
 </template>
@@ -647,6 +596,11 @@ import {
   updateStudyPlanStatus,
   uploadCurrentUserProfileImage,
 } from './api'
+import QuestionBankWorkspace from './modules/question-bank/views/QuestionBankWorkspace.vue'
+import './modules/question-bank/styles/question-bank-workspace.css'
+import LearningResourceWorkspace from './modules/learning-resource/LearningResourceWorkspace.vue'
+import StudyPlanWorkspace from './modules/study-plan/StudyPlanWorkspace.vue'
+import WrongQuestionWorkspace from './modules/wrong-question/WrongQuestionWorkspace.vue'
 
 const nowTime = () =>
   new Intl.DateTimeFormat('zh-CN', {
@@ -658,8 +612,98 @@ const nowTime = () =>
 
 const createId = (prefix) => `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`
 
+const HOME_BANNER_STORAGE_KEY = 'tovelokno-home-banners'
+const BANNER_IMAGE_MAX_WIDTH = 1800
+const BANNER_IMAGE_QUALITY = 0.86
+const BANNER_CROP_WIDTH = 1600
+const BANNER_CROP_HEIGHT = 680
+
+const DEFAULT_HOME_BANNERS = [
+  {
+    id: 'continue-resource',
+    title: '从星标资料继续',
+    text: '',
+    imageUrl: '',
+  },
+  {
+    id: 'today-plan',
+    title: '把任务推进到下一格',
+    text: '',
+    imageUrl: '',
+  },
+  {
+    id: 'wrong-review',
+    title: '错题优先处理',
+    text: '',
+    imageUrl: '',
+  },
+  {
+    id: 'question-bank',
+    title: '进入练习模块',
+    text: '',
+    imageUrl: '',
+  },
+]
+
+const cloneHomeBanners = (banners = DEFAULT_HOME_BANNERS) =>
+  banners.map((item, index) => ({
+    id: item.id || `banner-${index}`,
+    title: item.title || DEFAULT_HOME_BANNERS[index]?.title || '推荐画幅',
+    text: item.text || DEFAULT_HOME_BANNERS[index]?.text || '',
+    imageUrl: item.imageUrl || '',
+  }))
+
+const readHomeBanners = () => {
+  if (typeof window === 'undefined') return cloneHomeBanners()
+  try {
+    const saved = JSON.parse(window.localStorage.getItem(HOME_BANNER_STORAGE_KEY) || 'null')
+    return Array.isArray(saved) && saved.length ? cloneHomeBanners(saved) : cloneHomeBanners()
+  } catch {
+    return cloneHomeBanners()
+  }
+}
+
+const readImageAsDataUrl = (file, maxWidth = BANNER_IMAGE_MAX_WIDTH, quality = BANNER_IMAGE_QUALITY) =>
+  new Promise((resolve, reject) => {
+    if (!file?.type?.startsWith('image/')) {
+      reject(new Error('请选择图片文件'))
+      return
+    }
+
+    const reader = new FileReader()
+    reader.onerror = () => reject(new Error('图片读取失败'))
+    reader.onload = () => {
+      const rawUrl = reader.result
+      const image = new Image()
+      image.onerror = () => resolve(rawUrl)
+      image.onload = () => {
+        const ratio = Math.min(1, maxWidth / image.width)
+        const width = Math.round(image.width * ratio)
+        const height = Math.round(image.height * ratio)
+        const canvas = document.createElement('canvas')
+        canvas.width = width
+        canvas.height = height
+        const context = canvas.getContext('2d')
+        if (!context) {
+          resolve(rawUrl)
+          return
+        }
+        context.drawImage(image, 0, 0, width, height)
+        resolve(canvas.toDataURL('image/jpeg', quality))
+      }
+      image.src = rawUrl
+    }
+    reader.readAsDataURL(file)
+  })
+
 export default {
   name: 'App',
+  components: {
+    LearningResourceWorkspace,
+    QuestionBankWorkspace,
+    StudyPlanWorkspace,
+    WrongQuestionWorkspace,
+  },
   data() {
     return {
       loading: false,
@@ -671,18 +715,30 @@ export default {
         password: '',
         email: '',
       },
-      activePanel: 'profile',
+      activePanel: 'home',
       navItems: [
+        { id: 'home', label: '推荐首页', icon: 'HM' },
         { id: 'profile', label: '个人主页', icon: 'PR' },
-        { id: 'dashboard', label: '学习控制台', icon: 'HM' },
         { id: 'resources', label: '学习资料', icon: 'RS' },
         { id: 'cards', label: '知识卡片', icon: 'CD' },
         { id: 'practice', label: '题目练习', icon: 'TR' },
         { id: 'wrong', label: '错题本', icon: 'ER' },
         { id: 'plan', label: '学习计划', icon: 'PL' },
         { id: 'stats', label: '统计', icon: 'DT' },
-        { id: 'settings', label: '设置', icon: 'ST' },
       ],
+      homeBannerIndex: 0,
+      showBannerEditor: false,
+      editingBannerIndex: 0,
+      homeBanners: readHomeBanners(),
+      bannerDrafts: cloneHomeBanners(),
+      bannerTimer: null,
+      bannerCrop: {
+        active: false,
+        source: '',
+        zoom: 1,
+        x: 50,
+        y: 50,
+      },
       resourceTabs: ['全部', '文档', '图片', '视频', '音频', '其他'],
       activeResourceTab: '全部',
       resourceView: 'table',
@@ -840,6 +896,229 @@ export default {
     selectedResource() {
       return this.resources.find((item) => item.id === this.selectedResourceId) || this.resources[0]
     },
+    sidePanel() {
+      const baseStats = [
+        { label: '文件数', value: this.resources.length },
+        { label: '卡片', value: this.cards.length },
+        { label: '错题', value: this.wrongQuestions.length },
+        { label: '进度', value: `${this.planProgress}%` },
+      ]
+      const fallback = {
+        icon: 'T',
+        tone: 'blue',
+        title: '推荐首页',
+        subtitle: '推荐画幅、常用入口与今日队列',
+        meta: [
+          { label: '当前用户', value: this.profileName },
+          { label: '今日队列', value: `${this.todayFocus.length} 项` },
+          { label: '完成进度', value: `${this.planProgress}%` },
+          { label: '说明', value: '作为登录后的默认中转页，各模块返回都会回到这里。' },
+        ],
+        tags: ['推荐首页', '今日任务', '模块入口'],
+        statTitle: '总览统计',
+        statTarget: 'stats',
+        stats: baseStats,
+        listTitle: '今日队列',
+        listTarget: 'plan',
+        items: this.todayFocus.map((item) => ({ name: item.title, time: item.done ? '已完成' : '待执行' })),
+      }
+
+      const panels = {
+        home: fallback,
+        profile: {
+          icon: this.profileName.slice(0, 1).toUpperCase(),
+          tone: 'blue',
+          title: this.profileName,
+          subtitle: this.profile.email || '个人主页与资料',
+          meta: [
+            { label: '等级', value: `LV.${this.level}` },
+            { label: '签名', value: this.profileDiy.signature || '未设置' },
+            { label: '简介', value: this.profileForm.bio || this.profile.bio },
+          ],
+          tags: ['个人主页', '头像', '签名'],
+          statTitle: '主页数据',
+          statTarget: 'stats',
+          stats: baseStats,
+          listTitle: '主页入口',
+          listTarget: 'profile',
+          items: this.profileModules.map((item) => ({ name: item.title, time: item.text })),
+        },
+        dashboard: fallback,
+        resources: {
+          icon: this.selectedResource.icon,
+          tone: this.selectedResource.tone,
+          title: this.selectedResource.name,
+          subtitle: `${this.selectedResource.type} - ${this.selectedResource.size}`,
+          meta: [
+            { label: '位置', value: this.selectedResource.path },
+            { label: '来源', value: this.selectedResource.source },
+            { label: '修改时间', value: this.selectedResource.time },
+            { label: '描述', value: this.selectedResource.description },
+          ],
+          tags: [this.selectedResource.type, this.selectedResource.favorite ? '星标' : '未星标', this.selectedResource.source],
+          statTitle: '资料统计',
+          statTarget: 'stats',
+          stats: [
+            { label: '文件数', value: this.resources.length },
+            { label: '文档', value: this.resources.filter((item) => item.type === '文档').length },
+            { label: '星标', value: this.resources.filter((item) => item.favorite).length },
+            { label: '筛选', value: this.filteredResources.length },
+          ],
+          listTitle: '最近资料',
+          listTarget: 'resources',
+          items: this.recentStudy,
+        },
+        cards: {
+          icon: 'C',
+          tone: 'blue',
+          title: '知识卡片',
+          subtitle: `${this.cards.length} 张可复习卡片`,
+          meta: [
+            { label: '卡片总数', value: `${this.cards.length} 张` },
+            { label: '复习次数', value: `${this.cards.reduce((sum, item) => sum + item.reviewCount, 0)} 次` },
+            { label: '最近卡片', value: this.cards[0]?.title || '暂无' },
+            { label: '说明', value: '把概念、公式和易错点压缩成可复习卡片。' },
+          ],
+          tags: [...new Set(this.cards.map((item) => item.tag))],
+          statTitle: '卡片统计',
+          statTarget: 'stats',
+          stats: [
+            { label: '卡片', value: this.cards.length },
+            { label: '标签', value: new Set(this.cards.map((item) => item.tag)).size },
+            { label: '复习', value: this.cards.reduce((sum, item) => sum + item.reviewCount, 0) },
+            { label: '待复习', value: this.cards.filter((item) => item.reviewCount === 0).length },
+          ],
+          listTitle: '卡片列表',
+          listTarget: 'cards',
+          items: this.cards.slice(0, 3).map((item) => ({ name: item.title, time: item.tag })),
+        },
+        practice: {
+          icon: 'Q',
+          tone: 'violet',
+          title: '题库工作台',
+          subtitle: '题目管理、分类、练习与统计',
+          meta: [
+            { label: '模块来源', value: '组员题库模块' },
+            { label: '接入方式', value: '已嵌入主工作台' },
+            { label: '后端接口', value: '/api/questions 与 /api/question-bank' },
+            { label: '说明', value: '支持题目增删改查、分类关系、练习答题、错题与统计。' },
+          ],
+          tags: ['题库', '分类', '练习', '错题', '统计'],
+          statTitle: '题库能力',
+          statTarget: 'stats',
+          stats: [
+            { label: '题目', value: '✓' },
+            { label: '分类', value: '✓' },
+            { label: '练习', value: '✓' },
+            { label: '统计', value: '✓' },
+          ],
+          listTitle: '功能入口',
+          listTarget: 'practice',
+          items: [
+            { name: '题目列表', time: '管理' },
+            { name: '分类关系', time: '整理' },
+            { name: '练习模式', time: '答题' },
+            { name: '数据统计', time: '分析' },
+          ],
+        },
+        wrong: {
+          icon: 'E',
+          tone: 'red',
+          title: '错题本',
+          subtitle: `${this.filteredWrongQuestions.length} 条当前记录`,
+          meta: [
+            { label: '当前筛选', value: this.wrongFilter },
+            { label: '未掌握', value: `${this.wrongQuestions.filter((item) => !item.mastered).length} 条` },
+            { label: '已掌握', value: `${this.wrongQuestions.filter((item) => item.mastered).length} 条` },
+            { label: '说明', value: '集中处理练习中收集的错题和复盘笔记。' },
+          ],
+          tags: [this.wrongFilter, ...new Set(this.wrongQuestions.map((item) => item.subject))],
+          statTitle: '错题统计',
+          statTarget: 'stats',
+          stats: [
+            { label: '错题', value: this.wrongQuestions.length },
+            { label: '未掌握', value: this.wrongQuestions.filter((item) => !item.mastered).length },
+            { label: '已掌握', value: this.wrongQuestions.filter((item) => item.mastered).length },
+            { label: '筛选', value: this.filteredWrongQuestions.length },
+          ],
+          listTitle: '错题列表',
+          listTarget: 'wrong',
+          items: this.filteredWrongQuestions.map((item) => ({ name: item.title, time: item.mastered ? '已掌握' : '未掌握' })),
+        },
+        plan: {
+          icon: 'P',
+          tone: 'blue',
+          title: '学习计划',
+          subtitle: `${this.planProgress}% 完成`,
+          meta: [
+            { label: '计划总数', value: `${this.plans.length} 项` },
+            { label: '完成数量', value: `${this.plans.filter((item) => item.done).length} 项` },
+            { label: '筛选状态', value: this.planFilter.status || '全部' },
+            { label: '计划日期', value: this.planFilter.planDate || '未限定' },
+          ],
+          tags: ['学习计划', '今日路线', `${this.planProgress}%`],
+          statTitle: '计划统计',
+          statTarget: 'stats',
+          stats: [
+            { label: '计划', value: this.plans.length },
+            { label: '完成', value: this.plans.filter((item) => item.done).length },
+            { label: '待办', value: this.plans.filter((item) => !item.done).length },
+            { label: '进度', value: `${this.planProgress}%` },
+          ],
+          listTitle: '计划队列',
+          listTarget: 'plan',
+          items: this.plans.slice(0, 4).map((item) => ({ name: item.title, time: item.done ? '已完成' : item.time })),
+        },
+        stats: {
+          icon: 'D',
+          tone: 'blue',
+          title: '学习统计',
+          subtitle: '本地实时统计',
+          meta: [
+            { label: '资料整理', value: `${this.chartBars[0].value}%` },
+            { label: '卡片复习', value: `${this.chartBars[1].value}%` },
+            { label: '练习正确', value: `${this.chartBars[2].value}%` },
+            { label: '计划推进', value: `${this.chartBars[3].value}%` },
+          ],
+          tags: ['统计', '进度', '总览'],
+          statTitle: '核心数据',
+          statTarget: 'stats',
+          stats: baseStats,
+          listTitle: '指标列表',
+          listTarget: 'stats',
+          items: this.chartBars.map((item) => ({ name: item.label, time: `${item.value}%` })),
+        },
+        settings: {
+          icon: 'S',
+          tone: 'blue',
+          title: '设置',
+          subtitle: '账户资料与密码',
+          meta: [
+            { label: '昵称', value: this.profileForm.nickname || '未设置' },
+            { label: '邮箱', value: this.profileForm.email || '未设置' },
+            { label: '头像', value: this.profileDiy.avatarUrl ? '已上传' : '未上传' },
+            { label: '简介', value: this.profileForm.bio || '未填写' },
+          ],
+          tags: ['账户', '资料', '安全'],
+          statTitle: '账户状态',
+          statTarget: 'settings',
+          stats: [
+            { label: '头像', value: this.profileDiy.avatarUrl ? '有' : '无' },
+            { label: '邮箱', value: this.profileForm.email ? '有' : '无' },
+            { label: '等级', value: this.level },
+            { label: '进度', value: `${this.planProgress}%` },
+          ],
+          listTitle: '设置项',
+          listTarget: 'settings',
+          items: [
+            { name: '个人资料', time: '可编辑' },
+            { name: '邮箱信息', time: this.profileForm.email ? '已填写' : '未填写' },
+            { name: '登录密码', time: '可更新' },
+          ],
+        },
+      }
+      return panels[this.activePanel] || fallback
+    },
     currentQuestion() {
       return this.questions[this.currentQuestionIndex]
     },
@@ -876,12 +1155,31 @@ export default {
         { label: '计划推进', value: this.planProgress },
       ]
     },
-    homeCards() {
+    recommendationSlides() {
+      return this.homeBanners.length ? this.homeBanners : cloneHomeBanners()
+    },
+    activeRecommendationSlide() {
+      return this.recommendationSlides[this.homeBannerIndex] || this.recommendationSlides[0] || cloneHomeBanners()[0]
+    },
+    navGroups() {
+      const order = new Map(this.navItems.map((item, index) => [item.id, {
+        ...item,
+        number: String(index + 1).padStart(2, '0'),
+      }]))
       return [
-        { id: 'profile', code: '00', title: '个人主页', text: '进入独立主页，编辑名字、头像与签名。' },
-        { id: 'resources', code: '01', title: '资源中枢', text: '整理文件、星标重点、快速定位最近学习。' },
-        { id: 'cards', code: '02', title: '记忆卡组', text: '把散乱概念压缩成可复习的卡片。' },
-        { id: 'plan', code: '03', title: '今日路线', text: '用简洁计划把学习节奏固定下来。' },
+        { title: '入口', items: ['home', 'profile'].map((id) => order.get(id)).filter(Boolean) },
+        { title: '学习', items: ['resources', 'cards', 'practice', 'wrong', 'plan'].map((id) => order.get(id)).filter(Boolean) },
+        { title: '系统', items: ['stats'].map((id) => order.get(id)).filter(Boolean) },
+      ]
+    },
+    moduleDock() {
+      return [
+        { id: 'home', code: 'HM', label: '首页' },
+        { id: 'resources', code: 'RS', label: '资料' },
+        { id: 'cards', code: 'CD', label: '卡片' },
+        { id: 'practice', code: 'QB', label: '题库' },
+        { id: 'wrong', code: 'ER', label: '错题' },
+        { id: 'plan', code: 'PL', label: '计划' },
       ]
     },
     todayFocus() {
@@ -903,7 +1201,6 @@ export default {
         { code: 'RS', title: '资料库', text: `${this.resources.length} 个资源正在归档`, target: 'resources' },
         { code: 'CD', title: '知识卡片', text: `${this.cards.length} 张卡片可复习`, target: 'cards' },
         { code: 'ER', title: '错题压制', text: `${this.filteredWrongQuestions.length} 条记录可处理`, target: 'wrong' },
-        { code: 'ST', title: '账户设置', text: '修改资料与密码', target: 'settings' },
       ]
     },
     level() {
@@ -923,12 +1220,23 @@ export default {
     profileBackgroundSrc() {
       return resolveAssetUrl(this.profileDiy.backgroundUrl)
     },
+    bannerCropImageStyle() {
+      return {
+        transform: `scale(${this.bannerCrop.zoom})`,
+        transformOrigin: `${this.bannerCrop.x}% ${this.bannerCrop.y}%`,
+        objectPosition: `${this.bannerCrop.x}% ${this.bannerCrop.y}%`,
+      }
+    },
   },
   mounted() {
     if (this.isLoggedIn) {
       this.loadProfile()
       this.loadPlans()
     }
+    this.startBannerAutoplay()
+  },
+  beforeUnmount() {
+    this.stopBannerAutoplay()
   },
   watch: {
     activePanel(panel) {
@@ -938,6 +1246,164 @@ export default {
     },
   },
   methods: {
+    switchPanel(panel) {
+      const removedPanels = new Set(['dashboard', 'settings'])
+      const targetPanel = removedPanels.has(panel) ? 'home' : panel
+      if (!targetPanel || this.activePanel === targetPanel) return
+      this.activePanel = targetPanel
+      if (typeof window !== 'undefined') {
+        window.requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: 'smooth' }))
+      }
+    },
+    setBannerIndex(index) {
+      const total = this.recommendationSlides.length
+      if (!total) return
+      this.homeBannerIndex = (index + total) % total
+      this.startBannerAutoplay()
+    },
+    moveBanner(offset) {
+      this.setBannerIndex(this.homeBannerIndex + offset)
+    },
+    startBannerAutoplay() {
+      this.stopBannerAutoplay()
+      if (typeof window === 'undefined' || this.recommendationSlides.length <= 1) return
+      this.bannerTimer = window.setInterval(() => {
+        const total = this.recommendationSlides.length
+        if (total > 1) {
+          this.homeBannerIndex = (this.homeBannerIndex + 1) % total
+        }
+      }, 5200)
+    },
+    stopBannerAutoplay() {
+      if (typeof window !== 'undefined' && this.bannerTimer) {
+        window.clearInterval(this.bannerTimer)
+      }
+      this.bannerTimer = null
+    },
+    bannerVisualStyle(slide) {
+      return slide?.imageUrl
+        ? { '--banner-image': `url("${slide.imageUrl}")` }
+        : {}
+    },
+    bannerPreviewStyle(slide) {
+      return slide?.imageUrl
+        ? { '--preview-image': `url("${slide.imageUrl}")` }
+        : {}
+    },
+    openBannerEditor() {
+      this.bannerDrafts = cloneHomeBanners(this.homeBanners)
+      this.editingBannerIndex = Math.min(this.homeBannerIndex, this.bannerDrafts.length - 1)
+      this.showBannerEditor = true
+    },
+    selectBannerDraft(index) {
+      this.editingBannerIndex = index
+    },
+    async uploadHomeBannerImage(event) {
+      const file = event.target.files?.[0]
+      event.target.value = ''
+      if (!file || !this.bannerDrafts[this.editingBannerIndex]) return
+      try {
+        this.bannerCrop = {
+          active: true,
+          source: await readImageAsDataUrl(file),
+          zoom: 1,
+          x: 50,
+          y: 50,
+        }
+        this.profileMessage = '图片已载入，请裁剪后应用'
+      } catch (error) {
+        this.profileMessage = error.message || '图片载入失败'
+      }
+      setTimeout(() => {
+        this.profileMessage = ''
+      }, 1800)
+    },
+    clearHomeBannerImage() {
+      if (!this.bannerDrafts[this.editingBannerIndex]) return
+      this.bannerDrafts[this.editingBannerIndex].imageUrl = ''
+      this.cancelBannerCrop()
+      this.persistHomeBannerDrafts()
+    },
+    async applyBannerCrop() {
+      if (!this.bannerCrop.source || !this.bannerDrafts[this.editingBannerIndex]) return
+      try {
+        this.bannerDrafts[this.editingBannerIndex].imageUrl = await this.createCroppedBannerImage()
+        this.cancelBannerCrop()
+        this.persistHomeBannerDrafts()
+        this.profileMessage = '裁剪已应用到首页'
+      } catch (error) {
+        this.profileMessage = error.message || '裁剪失败'
+      }
+      setTimeout(() => {
+        this.profileMessage = ''
+      }, 1800)
+    },
+    cancelBannerCrop() {
+      this.bannerCrop = {
+        active: false,
+        source: '',
+        zoom: 1,
+        x: 50,
+        y: 50,
+      }
+    },
+    createCroppedBannerImage() {
+      return new Promise((resolve, reject) => {
+        const image = new Image()
+        image.onerror = () => reject(new Error('图片裁剪失败'))
+        image.onload = () => {
+          const canvas = document.createElement('canvas')
+          canvas.width = BANNER_CROP_WIDTH
+          canvas.height = BANNER_CROP_HEIGHT
+          const context = canvas.getContext('2d')
+          if (!context) {
+            reject(new Error('浏览器不支持裁剪'))
+            return
+          }
+
+          const zoom = Math.max(1, Number(this.bannerCrop.zoom) || 1)
+          const baseScale = Math.max(BANNER_CROP_WIDTH / image.width, BANNER_CROP_HEIGHT / image.height)
+          const scale = baseScale * zoom
+          const drawWidth = image.width * scale
+          const drawHeight = image.height * scale
+          const maxOffsetX = Math.max(0, drawWidth - BANNER_CROP_WIDTH)
+          const maxOffsetY = Math.max(0, drawHeight - BANNER_CROP_HEIGHT)
+          const offsetX = (maxOffsetX * (Number(this.bannerCrop.x) || 50)) / 100
+          const offsetY = (maxOffsetY * (Number(this.bannerCrop.y) || 50)) / 100
+
+          context.drawImage(image, -offsetX, -offsetY, drawWidth, drawHeight)
+          resolve(canvas.toDataURL('image/jpeg', BANNER_IMAGE_QUALITY))
+        }
+        image.src = this.bannerCrop.source
+      })
+    },
+    saveHomeBanners() {
+      this.persistHomeBannerDrafts()
+      this.profileMessage = '推荐画幅已保存'
+      setTimeout(() => {
+        this.profileMessage = ''
+      }, 1800)
+    },
+    persistHomeBannerDrafts() {
+      this.homeBanners = cloneHomeBanners(this.bannerDrafts)
+      this.homeBannerIndex = Math.min(this.homeBannerIndex, this.homeBanners.length - 1)
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem(HOME_BANNER_STORAGE_KEY, JSON.stringify(this.homeBanners))
+      }
+    },
+    resetHomeBanners() {
+      this.bannerDrafts = cloneHomeBanners()
+      this.homeBanners = cloneHomeBanners()
+      this.homeBannerIndex = 0
+      this.editingBannerIndex = 0
+      if (typeof window !== 'undefined') {
+        window.localStorage.removeItem(HOME_BANNER_STORAGE_KEY)
+      }
+      this.profileMessage = '推荐画幅已恢复默认'
+      setTimeout(() => {
+        this.profileMessage = ''
+      }, 1800)
+    },
     setAuthMode(mode) {
       this.authMode = mode
       this.message = { type: '', text: '' }
@@ -966,6 +1432,7 @@ export default {
           password: this.authForm.password,
         })
         this.isLoggedIn = true
+        this.activePanel = 'home'
         this.message = { type: 'success', text: '' }
         await this.loadProfile()
       } catch (error) {
@@ -980,7 +1447,7 @@ export default {
     handleLogout() {
       clearAuthToken()
       this.isLoggedIn = false
-      this.activePanel = 'profile'
+      this.activePanel = 'home'
     },
     async loadProfile() {
       try {
@@ -1078,7 +1545,7 @@ export default {
         note: this.currentQuestion.analysis,
         mastered: false,
       })
-      this.activePanel = 'wrong'
+      this.switchPanel('wrong')
     },
     removeWrongQuestion(id) {
       this.wrongQuestions = this.wrongQuestions.filter((item) => item.id !== id)

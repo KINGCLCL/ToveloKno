@@ -27,12 +27,14 @@ public class CorsConfig implements WebMvcConfigurer {
     private final CurrentUserArgumentResolver currentUserArgumentResolver;
     private final String[] allowedOrigins;
     private final Path profileUploadDir;
+    private final Path resourceUploadDir;
 
     public CorsConfig(
             AuthInterceptor authInterceptor,
             CurrentUserArgumentResolver currentUserArgumentResolver,
             @Value("${app.cors.allowed-origins:http://localhost:5173,http://127.0.0.1:5173}") String allowedOrigins,
-            @Value("${app.upload.profile-dir:uploads/profile}") String profileUploadDir) {
+            @Value("${app.upload.profile-dir:uploads/profile}") String profileUploadDir,
+            @Value("${app.upload.resource-dir:uploads/resources}") String resourceUploadDir) {
         this.authInterceptor = authInterceptor;
         this.currentUserArgumentResolver = currentUserArgumentResolver;
         this.allowedOrigins = Arrays.stream(allowedOrigins.split(","))
@@ -40,6 +42,7 @@ public class CorsConfig implements WebMvcConfigurer {
                 .filter(origin -> !origin.isEmpty())
                 .toArray(String[]::new);
         this.profileUploadDir = Path.of(profileUploadDir).toAbsolutePath().normalize();
+        this.resourceUploadDir = Path.of(resourceUploadDir).toAbsolutePath().normalize();
     }
 
     /**
@@ -64,6 +67,8 @@ public class CorsConfig implements WebMvcConfigurer {
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
         registry.addResourceHandler("/uploads/profile/**")
                 .addResourceLocations(profileUploadDir.toUri().toString() + "/");
+        registry.addResourceHandler("/uploads/resources/**")
+                .addResourceLocations(resourceUploadDir.toUri().toString() + "/");
     }
 
     /**

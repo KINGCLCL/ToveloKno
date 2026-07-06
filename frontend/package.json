@@ -9,10 +9,12 @@
     "preview": "vite preview --host 127.0.0.1"
   },
   "dependencies": {
+    "@lucide/vue": "^1.23.0",
     "@vitejs/plugin-vue": "^6.0.3",
     "axios": "^1.13.2",
+    "mammoth": "^1.12.0",
+    "pdfjs-dist": "^6.1.200",
     "vite": "^7.3.0",
     "vue": "^3.5.25"
-  },
-  "devDependencies": {}
+  }
 }
