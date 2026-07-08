@@ -33,6 +33,15 @@ public class StudyPlan {
     @Column(name = "plan_date", nullable = false)
     private LocalDate planDate;
 
+    @Column(name = "target_type", length = 40)
+    private String targetType;
+
+    @Column(name = "target_id")
+    private Long targetId;
+
+    @Column(name = "target_title", length = 180)
+    private String targetTitle;
+
     /**
      * pending  - 待完成
      * completed - 已完成
@@ -70,6 +79,18 @@ public class StudyPlan {
         return planDate;
     }
 
+    public String getTargetType() {
+        return targetType;
+    }
+
+    public Long getTargetId() {
+        return targetId;
+    }
+
+    public String getTargetTitle() {
+        return targetTitle;
+    }
+
     public String getStatus() {
         return status;
     }
@@ -104,6 +125,18 @@ public class StudyPlan {
 
     public void setPlanDate(LocalDate planDate) {
         this.planDate = planDate;
+    }
+
+    public void setTargetType(String targetType) {
+        this.targetType = targetType;
+    }
+
+    public void setTargetId(Long targetId) {
+        this.targetId = targetId;
+    }
+
+    public void setTargetTitle(String targetTitle) {
+        this.targetTitle = targetTitle;
     }
 
     public void setStatus(String status) {

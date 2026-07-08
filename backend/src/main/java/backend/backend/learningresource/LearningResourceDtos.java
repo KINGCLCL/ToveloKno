@@ -2,8 +2,11 @@ package backend.backend.learningresource;
 
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import backend.backend.question.QuestionStatus;
+import backend.backend.question.QuestionType;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -44,6 +47,21 @@ public final class LearningResourceDtos {
 
     public record AnnotationsRequest(
             @NotNull List<AnnotationPayload> annotations) {
+    }
+
+    public record ResourceQuestionRequest(
+            @NotBlank @Size(max = 10000) String content,
+            @NotNull QuestionType questionType,
+            @Size(max = 8) List<@NotBlank @Size(max = 500) String> options,
+            @NotBlank @Size(max = 1000) String correctAnswer,
+            @Size(max = 10000) String analysis,
+            @NotNull @Min(1) @Max(5) Integer difficulty,
+            @Size(max = 80) String subject,
+            @Size(max = 80) String knowledgePoint,
+            QuestionStatus status,
+            Long categoryId,
+            @Min(1) Integer sourcePage,
+            @Size(max = 4000) String sourceExcerpt) {
     }
 
     public record AnnotationPayload(

@@ -17,19 +17,22 @@ public class DatabaseMigrationConfig {
     @Bean
     public ApplicationRunner ensureUserProfileColumns(JdbcTemplate jdbcTemplate) {
         return args -> {
-            addColumnIfMissing(jdbcTemplate, "nickname", "VARCHAR(80)");
-            addColumnIfMissing(jdbcTemplate, "bio", "VARCHAR(500)");
-            addColumnIfMissing(jdbcTemplate, "profile_background", "VARCHAR(255)");
+            addColumnIfMissing(jdbcTemplate, "user", "nickname", "VARCHAR(80)");
+            addColumnIfMissing(jdbcTemplate, "user", "bio", "VARCHAR(500)");
+            addColumnIfMissing(jdbcTemplate, "user", "profile_background", "VARCHAR(255)");
             createLearningResourceTableIfMissing(jdbcTemplate);
+            createHomeBannerTableIfMissing(jdbcTemplate);
+            addQuestionSourceColumns(jdbcTemplate);
+            addStudyPlanTargetColumns(jdbcTemplate);
         };
     }
 
-    private void addColumnIfMissing(JdbcTemplate jdbcTemplate, String columnName, String definition) {
+    private void addColumnIfMissing(JdbcTemplate jdbcTemplate, String tableName, String columnName, String definition) {
         Boolean exists = jdbcTemplate.execute((ConnectionCallback<Boolean>) connection -> {
             try (ResultSet columns = connection.getMetaData().getColumns(
                     connection.getCatalog(), null, null, null)) {
                 while (columns.next()) {
-                    if ("user".equalsIgnoreCase(columns.getString("TABLE_NAME"))
+                    if (tableName.equalsIgnoreCase(columns.getString("TABLE_NAME"))
                             && columnName.equalsIgnoreCase(columns.getString("COLUMN_NAME"))) {
                         return true;
                     }
@@ -38,8 +41,22 @@ public class DatabaseMigrationConfig {
             }
         });
         if (!Boolean.TRUE.equals(exists)) {
-            jdbcTemplate.execute("ALTER TABLE user ADD COLUMN " + columnName + " " + definition);
+            jdbcTemplate.execute("ALTER TABLE " + tableName + " ADD COLUMN " + columnName + " " + definition);
         }
+    }
+
+    private void addQuestionSourceColumns(JdbcTemplate jdbcTemplate) {
+        addColumnIfMissing(jdbcTemplate, "question", "source_type", "VARCHAR(40) NULL");
+        addColumnIfMissing(jdbcTemplate, "question", "source_resource_id", "BIGINT NULL");
+        addColumnIfMissing(jdbcTemplate, "question", "source_resource_name", "VARCHAR(180) NULL");
+        addColumnIfMissing(jdbcTemplate, "question", "source_page", "INT NULL");
+        addColumnIfMissing(jdbcTemplate, "question", "source_excerpt", "TEXT NULL");
+    }
+
+    private void addStudyPlanTargetColumns(JdbcTemplate jdbcTemplate) {
+        addColumnIfMissing(jdbcTemplate, "study_plan", "target_type", "VARCHAR(40) NULL");
+        addColumnIfMissing(jdbcTemplate, "study_plan", "target_id", "BIGINT NULL");
+        addColumnIfMissing(jdbcTemplate, "study_plan", "target_title", "VARCHAR(180) NULL");
     }
 
     private void createLearningResourceTableIfMissing(JdbcTemplate jdbcTemplate) {
@@ -64,6 +81,22 @@ public class DatabaseMigrationConfig {
                     annotation_count INT NOT NULL DEFAULT 0,
                     annotations_json TEXT,
                     last_studied_at TIMESTAMP NULL,
+                    created_at TIMESTAMP NOT NULL,
+                    updated_at TIMESTAMP NOT NULL
+                )
+                """);
+    }
+
+    private void createHomeBannerTableIfMissing(JdbcTemplate jdbcTemplate) {
+        jdbcTemplate.execute("""
+                CREATE TABLE IF NOT EXISTS home_banner (
+                    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+                    banner_key VARCHAR(80) NOT NULL UNIQUE,
+                    title VARCHAR(150) NOT NULL,
+                    intro_text VARCHAR(300),
+                    image_url VARCHAR(500),
+                    sort_order INT NOT NULL DEFAULT 0,
+                    updated_by BIGINT NULL,
                     created_at TIMESTAMP NOT NULL,
                     updated_at TIMESTAMP NOT NULL
                 )

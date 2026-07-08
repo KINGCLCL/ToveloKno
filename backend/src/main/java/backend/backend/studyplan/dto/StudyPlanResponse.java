@@ -12,6 +12,9 @@ public class StudyPlanResponse {
     private String title;
     private String content;
     private LocalDate planDate;
+    private String targetType;
+    private Long targetId;
+    private String targetTitle;
     private String status;
     private LocalDateTime completedAt;
     private LocalDateTime createdAt;
@@ -25,6 +28,9 @@ public class StudyPlanResponse {
             String title,
             String content,
             LocalDate planDate,
+            String targetType,
+            Long targetId,
+            String targetTitle,
             String status,
             LocalDateTime completedAt,
             LocalDateTime createdAt,
@@ -33,6 +39,9 @@ public class StudyPlanResponse {
         this.title = title;
         this.content = content;
         this.planDate = planDate;
+        this.targetType = targetType;
+        this.targetId = targetId;
+        this.targetTitle = targetTitle;
         this.status = status;
         this.completedAt = completedAt;
         this.createdAt = createdAt;
@@ -53,6 +62,18 @@ public class StudyPlanResponse {
 
     public LocalDate getPlanDate() {
         return planDate;
+    }
+
+    public String getTargetType() {
+        return targetType;
+    }
+
+    public Long getTargetId() {
+        return targetId;
+    }
+
+    public String getTargetTitle() {
+        return targetTitle;
     }
 
     public String getStatus() {
@@ -85,6 +106,18 @@ public class StudyPlanResponse {
 
     public void setPlanDate(LocalDate planDate) {
         this.planDate = planDate;
+    }
+
+    public void setTargetType(String targetType) {
+        this.targetType = targetType;
+    }
+
+    public void setTargetId(Long targetId) {
+        this.targetId = targetId;
+    }
+
+    public void setTargetTitle(String targetTitle) {
+        this.targetTitle = targetTitle;
     }
 
     public void setStatus(String status) {

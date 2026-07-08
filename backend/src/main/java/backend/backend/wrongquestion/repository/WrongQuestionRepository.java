@@ -27,6 +27,11 @@ public interface WrongQuestionRepository extends JpaRepository<WrongQuestion, Lo
                 q.correct_answer AS correctAnswer,
                 q.analysis AS analysis,
                 q.difficulty AS difficulty,
+                q.source_type AS sourceType,
+                q.source_resource_id AS sourceResourceId,
+                q.source_resource_name AS sourceResourceName,
+                q.source_page AS sourcePage,
+                q.source_excerpt AS sourceExcerpt,
                 w.wrong_count AS wrongCount,
                 w.mastered AS mastered,
                 w.last_wrong_at AS lastWrongAt,
@@ -56,6 +61,16 @@ public interface WrongQuestionRepository extends JpaRepository<WrongQuestion, Lo
         String getAnalysis();
 
         Integer getDifficulty();
+
+        String getSourceType();
+
+        Long getSourceResourceId();
+
+        String getSourceResourceName();
+
+        Integer getSourcePage();
+
+        String getSourceExcerpt();
 
         Integer getWrongCount();
 

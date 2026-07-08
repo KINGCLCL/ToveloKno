@@ -105,6 +105,27 @@ export function changeCurrentUserPassword(data) {
   return api.put('/users/me/password', data)
 }
 
+export function listHomeBanners() {
+  return api.get('/home-banners')
+}
+
+export function saveHomeBanners(data) {
+  return api.put('/home-banners', data)
+}
+
+export function uploadHomeBannerImage(file) {
+  const formData = new FormData()
+  formData.append('file', file)
+  return api.post('/home-banners/image', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 120000,
+  })
+}
+
+export function resetHomeBanners() {
+  return api.delete('/home-banners')
+}
+
 export function listLearningResources(params = {}) {
   return api.get('/resources', { params })
 }
@@ -130,6 +151,10 @@ export function updateLearningResourceProgress(resourceId, data) {
 
 export function updateLearningResourceAnnotations(resourceId, annotations) {
   return api.put(`/resources/${resourceId}/annotations`, { annotations })
+}
+
+export function createQuestionFromResource(resourceId, data) {
+  return api.post(`/resources/${resourceId}/questions`, data)
 }
 
 export function toggleLearningResourceFavorite(resourceId) {
@@ -233,6 +258,30 @@ export function deleteStudyPlan(planId) {
 // 修改学习计划状态（pending / completed / cancelled）。
 export function updateStudyPlanStatus(planId, status) {
   return api.put(`/study-plans/${planId}/status`, { status })
+}
+
+export function fetchStudyLinkOverview() {
+  return api.get('/study-links/overview')
+}
+
+export function createWrongQuestionReviewPlan(wrongQuestion, planDate = new Date().toISOString().slice(0, 10)) {
+  const title = `复盘错题：${(wrongQuestion.content || '').replace(/\s+/g, ' ').trim().slice(0, 42) || wrongQuestion.questionId}`
+  const sourceLine = wrongQuestion.sourceResourceName
+    ? `来源资料：${wrongQuestion.sourceResourceName}${wrongQuestion.sourcePage ? `，第 ${wrongQuestion.sourcePage} 页` : ''}`
+    : '来源资料：未关联'
+  return createStudyPlan({
+    title,
+    content: [
+      `错因复盘：先重做，再对照答案与解析。`,
+      `正确答案：${wrongQuestion.correctAnswer || '暂无'}`,
+      wrongQuestion.analysis ? `解析：${wrongQuestion.analysis}` : '',
+      sourceLine,
+    ].filter(Boolean).join('\n'),
+    planDate,
+    targetType: 'WRONG_QUESTION',
+    targetId: wrongQuestion.id,
+    targetTitle: title,
+  })
 }
 
 // 查询错题本列表，mastered 可选：true / false。

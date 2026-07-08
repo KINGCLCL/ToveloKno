@@ -4,7 +4,12 @@ import backend.backend.auth.AuthenticatedUser;
 import backend.backend.common.BusinessException;
 import backend.backend.common.PageResponse;
 import backend.backend.learningresource.LearningResourceDtos.AnnotationPayload;
+import backend.backend.learningresource.LearningResourceDtos.ResourceQuestionRequest;
 import backend.backend.learningresource.LearningResourceDtos.ResourceResponse;
+import backend.backend.question.QuestionResponse;
+import backend.backend.question.QuestionSaveRequest;
+import backend.backend.question.QuestionService;
+import backend.backend.question.QuestionStatus;
 import backend.backend.service.OperationLogService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -37,16 +42,19 @@ public class LearningResourceService {
     };
 
     private final LearningResourceRepository learningResourceRepository;
+    private final QuestionService questionService;
     private final OperationLogService operationLogService;
     private final ObjectMapper objectMapper;
     private final Path uploadRoot;
 
     public LearningResourceService(
             LearningResourceRepository learningResourceRepository,
+            QuestionService questionService,
             OperationLogService operationLogService,
             ObjectMapper objectMapper,
             @Value("${app.upload.resource-dir:uploads/resources}") String uploadDir) {
         this.learningResourceRepository = learningResourceRepository;
+        this.questionService = questionService;
         this.operationLogService = operationLogService;
         this.objectMapper = objectMapper;
         this.uploadRoot = Path.of(uploadDir).toAbsolutePath().normalize();
@@ -154,6 +162,38 @@ public class LearningResourceService {
         resource.setLastStudiedAt(LocalDateTime.now());
         resource.setUpdatedAt(LocalDateTime.now());
         return toResponse(learningResourceRepository.save(resource));
+    }
+
+    @Transactional
+    public QuestionResponse createQuestionFromExcerpt(
+            Long resourceId,
+            AuthenticatedUser currentUser,
+            ResourceQuestionRequest request) {
+        LearningResource resource = findOwned(resourceId, currentUser.getId());
+
+        QuestionSaveRequest questionRequest = new QuestionSaveRequest();
+        questionRequest.setContent(request.content());
+        questionRequest.setQuestionType(request.questionType());
+        questionRequest.setOptions(request.options());
+        questionRequest.setCorrectAnswer(request.correctAnswer());
+        questionRequest.setAnalysis(request.analysis());
+        questionRequest.setDifficulty(request.difficulty());
+        questionRequest.setSubject(request.subject());
+        questionRequest.setKnowledgePoint(request.knowledgePoint());
+        questionRequest.setStatus(request.status() == null ? QuestionStatus.DRAFT : request.status());
+        questionRequest.setCategoryId(request.categoryId());
+        questionRequest.setSourceType("RESOURCE_EXCERPT");
+        questionRequest.setSourceResourceId(resource.getId());
+        questionRequest.setSourceResourceName(resource.getName());
+        questionRequest.setSourcePage(request.sourcePage());
+        questionRequest.setSourceExcerpt(request.sourceExcerpt());
+
+        QuestionResponse created = questionService.createQuestion(questionRequest, currentUser);
+        operationLogService.record(
+                currentUser.getId(),
+                "RESOURCE_EXCERPT_TO_QUESTION",
+                "从学习资料生成题目：" + resource.getName());
+        return created;
     }
 
     @Transactional

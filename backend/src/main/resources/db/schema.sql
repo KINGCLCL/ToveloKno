@@ -126,6 +126,11 @@ CREATE TABLE IF NOT EXISTS question (
     knowledge_point VARCHAR(80),
     status VARCHAR(20) NOT NULL DEFAULT 'DRAFT' COMMENT 'DRAFT, PUBLISHED',
     category_id BIGINT,
+    source_type VARCHAR(40),
+    source_resource_id BIGINT,
+    source_resource_name VARCHAR(180),
+    source_page INT,
+    source_excerpt TEXT,
     created_by BIGINT NOT NULL,
     deleted TINYINT(1) NOT NULL DEFAULT 0,
     deleted_at DATETIME,
@@ -191,6 +196,9 @@ CREATE TABLE IF NOT EXISTS study_plan (
     title VARCHAR(150) NOT NULL,
     content TEXT,
     plan_date DATE NOT NULL,
+    target_type VARCHAR(40),
+    target_id BIGINT,
+    target_title VARCHAR(180),
     status VARCHAR(30) NOT NULL DEFAULT 'pending' COMMENT 'pending, completed, cancelled',
     completed_at DATETIME,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -212,6 +220,21 @@ CREATE TABLE IF NOT EXISTS study_record (
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE KEY uk_study_record_user_date (user_id, study_date),
     CONSTRAINT fk_record_user FOREIGN KEY (user_id) REFERENCES user (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Home banner table: stores recommended carousel images shown on the homepage.
+CREATE TABLE IF NOT EXISTS home_banner (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    banner_key VARCHAR(80) NOT NULL UNIQUE,
+    title VARCHAR(150) NOT NULL,
+    intro_text VARCHAR(300),
+    image_url VARCHAR(500),
+    sort_order INT NOT NULL DEFAULT 0,
+    updated_by BIGINT,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    KEY idx_home_banner_sort (sort_order, id),
+    CONSTRAINT fk_home_banner_user FOREIGN KEY (updated_by) REFERENCES user (id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- Operation log table: records important user and administrator actions.

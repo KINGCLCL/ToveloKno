@@ -171,7 +171,10 @@
                 <span>HOME BANNER</span>
                 <strong>推荐画幅编辑</strong>
               </div>
-              <button type="button" @click="showBannerEditor = false">收起</button>
+              <div class="banner-editor-header-actions">
+                <button class="banner-save-button" type="button" @click="saveHomeBanners()">保存到首页</button>
+                <button type="button" @click="showBannerEditor = false">收起</button>
+              </div>
             </header>
 
             <div class="banner-editor-tabs">
@@ -186,7 +189,7 @@
               </button>
             </div>
 
-            <form class="banner-editor-form" @submit.prevent="saveHomeBanners">
+            <form class="banner-editor-form" @submit.prevent="saveHomeBanners()">
               <label>
                 <span>图片介绍文字</span>
                 <input v-model.trim="bannerDrafts[editingBannerIndex].text" placeholder="默认留空，只在画幅底部显示一行" />
@@ -227,13 +230,13 @@
                     <input v-model.number="bannerCrop.y" type="range" min="0" max="100" step="1" />
                   </label>
                   <div class="banner-crop-actions">
-                    <button class="primary-button soft" type="button" @click="applyBannerCrop">应用裁剪</button>
+                    <button class="primary-button soft" type="button" @click="applyBannerCrop()">应用并保存</button>
                     <button class="outline-button" type="button" @click="cancelBannerCrop">取消</button>
                   </div>
                 </div>
               </section>
               <div class="banner-editor-actions">
-                <button class="primary-button soft" type="submit">保存画幅</button>
+                <button class="banner-save-button wide" type="submit">保存到首页</button>
                 <button class="outline-button" type="button" @click="resetHomeBanners">恢复默认</button>
               </div>
             </form>
@@ -335,6 +338,50 @@
                 </div>
               </div>
             </article>
+          </section>
+          <section class="home-link-hub" aria-label="学习联动中枢">
+            <header>
+              <div>
+                <span class="ark-kicker">CONNECTED STUDY</span>
+                <h3>学习中枢</h3>
+              </div>
+              <button type="button" @click="loadStudyLinkOverview">刷新</button>
+            </header>
+            <div class="home-link-stats">
+              <article v-for="item in studyLinkStats" :key="item.label" @click="switchPanel(item.target)">
+                <span>{{ item.label }}</span>
+                <strong>{{ item.value }}</strong>
+                <p>{{ item.desc }}</p>
+              </article>
+            </div>
+            <div class="home-link-columns">
+              <section>
+                <header>
+                  <strong>资料生成的题</strong>
+                  <button type="button" @click="switchPanel('practice')">题库</button>
+                </header>
+                <p v-if="!studyLinkOverview.recentResourceQuestions?.length" class="home-link-empty">
+                  暂无资料摘录题，去资料模块截取内容生成题目。
+                </p>
+                <article v-for="item in studyLinkOverview.recentResourceQuestions || []" :key="item.id">
+                  <b>{{ item.content }}</b>
+                  <span>{{ item.sourceResourceName || '学习资料' }}{{ item.sourcePage ? ` / P${item.sourcePage}` : '' }}</span>
+                </article>
+              </section>
+              <section>
+                <header>
+                  <strong>关联计划</strong>
+                  <button type="button" @click="switchPanel('plan')">计划</button>
+                </header>
+                <p v-if="!studyLinkOverview.recentPlans?.length" class="home-link-empty">
+                  暂无计划，把错题或资料加入复盘队列。
+                </p>
+                <article v-for="item in studyLinkOverview.recentPlans || []" :key="item.id">
+                  <b>{{ item.title }}</b>
+                  <span>{{ targetTypeLabel(item.targetType) }}{{ item.targetTitle ? ` / ${item.targetTitle}` : '' }} · {{ statusLabel(item.status) }}</span>
+                </article>
+              </section>
+            </div>
           </section>
         </section>
 
@@ -585,16 +632,21 @@ import {
   clearAuthToken,
   createStudyPlan,
   deleteStudyPlan,
+  fetchStudyLinkOverview,
   getAuthToken,
   getCurrentUserProfile,
   listStudyPlans,
   loginUser,
+  listHomeBanners,
   registerUser,
+  resetHomeBanners as resetHomeBannersApi,
   resolveAssetUrl,
+  saveHomeBanners as saveHomeBannersApi,
   updateCurrentUserProfile,
   updateStudyPlan,
   updateStudyPlanStatus,
   uploadCurrentUserProfileImage,
+  uploadHomeBannerImage as uploadHomeBannerImageFile,
 } from './api'
 import QuestionBankWorkspace from './modules/question-bank/views/QuestionBankWorkspace.vue'
 import './modules/question-bank/styles/question-bank-workspace.css'
@@ -696,6 +748,18 @@ const readImageAsDataUrl = (file, maxWidth = BANNER_IMAGE_MAX_WIDTH, quality = B
     reader.readAsDataURL(file)
   })
 
+const dataUrlToFile = (dataUrl, filename = 'home-banner.jpg') => {
+  const [meta, content] = dataUrl.split(',')
+  const mimeMatch = meta.match(/data:(.*?);base64/)
+  const mime = mimeMatch?.[1] || 'image/jpeg'
+  const binary = atob(content)
+  const bytes = new Uint8Array(binary.length)
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index)
+  }
+  return new File([bytes], filename, { type: mime })
+}
+
 export default {
   name: 'App',
   components: {
@@ -732,6 +796,7 @@ export default {
       homeBanners: readHomeBanners(),
       bannerDrafts: cloneHomeBanners(),
       bannerTimer: null,
+      studyLinkOverview: {},
       bannerCrop: {
         active: false,
         source: '',
@@ -1155,6 +1220,16 @@ export default {
         { label: '计划推进', value: this.planProgress },
       ]
     },
+    studyLinkStats() {
+      const overview = this.studyLinkOverview || {}
+      return [
+        { label: '资料', value: overview.resourceCount ?? this.resources.length, desc: '已归档学习资料', target: 'resources' },
+        { label: '题目', value: overview.questionCount ?? '-', desc: '题库总量', target: 'practice' },
+        { label: '资料题', value: overview.resourceQuestionCount ?? '-', desc: '从资料摘录生成', target: 'practice' },
+        { label: '未掌握', value: overview.activeWrongCount ?? this.wrongQuestions.length, desc: '错题复盘队列', target: 'wrong' },
+        { label: '待计划', value: overview.pendingPlanCount ?? '-', desc: '待执行学习任务', target: 'plan' },
+      ]
+    },
     recommendationSlides() {
       return this.homeBanners.length ? this.homeBanners : cloneHomeBanners()
     },
@@ -1232,14 +1307,18 @@ export default {
     if (this.isLoggedIn) {
       this.loadProfile()
       this.loadPlans()
+      this.loadStudyLinkOverview()
     }
-    this.startBannerAutoplay()
+    this.loadHomeBanners().finally(() => this.startBannerAutoplay())
   },
   beforeUnmount() {
     this.stopBannerAutoplay()
   },
   watch: {
     activePanel(panel) {
+      if (panel === 'home' && this.isLoggedIn) {
+        this.loadStudyLinkOverview()
+      }
       if (panel === 'plan' && this.isLoggedIn) {
         this.loadPlans()
       }
@@ -1264,6 +1343,22 @@ export default {
     moveBanner(offset) {
       this.setBannerIndex(this.homeBannerIndex + offset)
     },
+    targetTypeLabel(type) {
+      return {
+        RESOURCE: '资料',
+        QUESTION: '题目',
+        WRONG_QUESTION: '错题',
+      }[type] || '未关联'
+    },
+    async loadStudyLinkOverview() {
+      if (!this.isLoggedIn) return
+      try {
+        const response = await fetchStudyLinkOverview()
+        this.studyLinkOverview = response.data?.data || {}
+      } catch {
+        this.studyLinkOverview = {}
+      }
+    },
     startBannerAutoplay() {
       this.stopBannerAutoplay()
       if (typeof window === 'undefined' || this.recommendationSlides.length <= 1) return
@@ -1282,12 +1377,12 @@ export default {
     },
     bannerVisualStyle(slide) {
       return slide?.imageUrl
-        ? { '--banner-image': `url("${slide.imageUrl}")` }
+        ? { '--banner-image': `url("${resolveAssetUrl(slide.imageUrl)}")` }
         : {}
     },
     bannerPreviewStyle(slide) {
       return slide?.imageUrl
-        ? { '--preview-image': `url("${slide.imageUrl}")` }
+        ? { '--preview-image': `url("${resolveAssetUrl(slide.imageUrl)}")` }
         : {}
     },
     openBannerEditor() {
@@ -1310,7 +1405,7 @@ export default {
           x: 50,
           y: 50,
         }
-        this.profileMessage = '图片已载入，请裁剪后应用'
+        this.profileMessage = '图片已载入，保存时会自动应用裁剪'
       } catch (error) {
         this.profileMessage = error.message || '图片载入失败'
       }
@@ -1318,25 +1413,32 @@ export default {
         this.profileMessage = ''
       }, 1800)
     },
-    clearHomeBannerImage() {
+    async clearHomeBannerImage() {
       if (!this.bannerDrafts[this.editingBannerIndex]) return
       this.bannerDrafts[this.editingBannerIndex].imageUrl = ''
       this.cancelBannerCrop()
-      this.persistHomeBannerDrafts()
+      await this.saveHomeBanners('图片已清除并同步到首页')
     },
-    async applyBannerCrop() {
+    async applyBannerCrop(successMessage) {
+      const message = typeof successMessage === 'string' ? successMessage : '图片已保存并同步到首页'
       if (!this.bannerCrop.source || !this.bannerDrafts[this.editingBannerIndex]) return
       try {
-        this.bannerDrafts[this.editingBannerIndex].imageUrl = await this.createCroppedBannerImage()
+        const croppedDataUrl = await this.createCroppedBannerImage()
+        const imageFile = dataUrlToFile(croppedDataUrl, `home-banner-${this.editingBannerIndex + 1}.jpg`)
+        const response = await uploadHomeBannerImageFile(imageFile)
+        const imageUrl = response.data?.data?.imageUrl || ''
+        if (!imageUrl) {
+          throw new Error('图片上传失败')
+        }
+        this.bannerDrafts[this.editingBannerIndex].imageUrl = imageUrl
         this.cancelBannerCrop()
-        this.persistHomeBannerDrafts()
-        this.profileMessage = '裁剪已应用到首页'
+        await this.saveHomeBanners(message)
       } catch (error) {
-        this.profileMessage = error.message || '裁剪失败'
+        this.profileMessage = error.response?.data?.message || error.message || '裁剪失败'
+        setTimeout(() => {
+          this.profileMessage = ''
+        }, 1800)
       }
-      setTimeout(() => {
-        this.profileMessage = ''
-      }, 1800)
     },
     cancelBannerCrop() {
       this.bannerCrop = {
@@ -1377,32 +1479,57 @@ export default {
         image.src = this.bannerCrop.source
       })
     },
-    saveHomeBanners() {
-      this.persistHomeBannerDrafts()
-      this.profileMessage = '推荐画幅已保存'
-      setTimeout(() => {
-        this.profileMessage = ''
-      }, 1800)
+    async saveHomeBanners(successMessage) {
+      const message = typeof successMessage === 'string' ? successMessage : '推荐画幅已保存到网站首页'
+      if (this.bannerCrop.active && this.bannerCrop.source) {
+        return this.applyBannerCrop(message)
+      }
+      const targetIndex = this.editingBannerIndex
+      try {
+        const response = await saveHomeBannersApi({ banners: cloneHomeBanners(this.bannerDrafts) })
+        this.applyHomeBannerResponse(response.data?.data, targetIndex)
+        this.profileMessage = message
+        return true
+      } catch (error) {
+        this.profileMessage = error.response?.data?.message || '推荐画幅保存失败'
+        return false
+      } finally {
+        setTimeout(() => {
+          this.profileMessage = ''
+        }, 1800)
+      }
     },
     persistHomeBannerDrafts() {
       this.homeBanners = cloneHomeBanners(this.bannerDrafts)
       this.homeBannerIndex = Math.min(this.homeBannerIndex, this.homeBanners.length - 1)
-      if (typeof window !== 'undefined') {
-        window.localStorage.setItem(HOME_BANNER_STORAGE_KEY, JSON.stringify(this.homeBanners))
-      }
     },
-    resetHomeBanners() {
-      this.bannerDrafts = cloneHomeBanners()
-      this.homeBanners = cloneHomeBanners()
-      this.homeBannerIndex = 0
-      this.editingBannerIndex = 0
-      if (typeof window !== 'undefined') {
-        window.localStorage.removeItem(HOME_BANNER_STORAGE_KEY)
+    async resetHomeBanners() {
+      try {
+        const response = await resetHomeBannersApi()
+        this.applyHomeBannerResponse(response.data?.data, 0)
+        this.profileMessage = '推荐画幅已恢复默认'
+      } catch (error) {
+        this.profileMessage = error.response?.data?.message || '恢复默认失败'
       }
-      this.profileMessage = '推荐画幅已恢复默认'
       setTimeout(() => {
         this.profileMessage = ''
       }, 1800)
+    },
+    async loadHomeBanners() {
+      try {
+        const response = await listHomeBanners()
+        this.applyHomeBannerResponse(response.data?.data)
+      } catch {
+        this.homeBanners = cloneHomeBanners()
+        this.bannerDrafts = cloneHomeBanners(this.homeBanners)
+      }
+    },
+    applyHomeBannerResponse(banners, preferredIndex = this.homeBannerIndex) {
+      this.homeBanners = cloneHomeBanners(Array.isArray(banners) && banners.length ? banners : DEFAULT_HOME_BANNERS)
+      this.bannerDrafts = cloneHomeBanners(this.homeBanners)
+      this.homeBannerIndex = Math.min(Math.max(preferredIndex, 0), this.homeBanners.length - 1)
+      this.editingBannerIndex = Math.min(Math.max(this.editingBannerIndex, 0), this.bannerDrafts.length - 1)
+      this.startBannerAutoplay()
     },
     setAuthMode(mode) {
       this.authMode = mode

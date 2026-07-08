@@ -14,6 +14,11 @@ public class WrongQuestionResponse {
     private String correctAnswer;
     private String analysis;
     private Integer difficulty;
+    private String sourceType;
+    private Long sourceResourceId;
+    private String sourceResourceName;
+    private Integer sourcePage;
+    private String sourceExcerpt;
     private Integer wrongCount;
     private Boolean mastered;
     private LocalDateTime lastWrongAt;
@@ -27,6 +32,11 @@ public class WrongQuestionResponse {
             String correctAnswer,
             String analysis,
             Integer difficulty,
+            String sourceType,
+            Long sourceResourceId,
+            String sourceResourceName,
+            Integer sourcePage,
+            String sourceExcerpt,
             Integer wrongCount,
             Boolean mastered,
             LocalDateTime lastWrongAt,
@@ -38,6 +48,11 @@ public class WrongQuestionResponse {
         this.correctAnswer = correctAnswer;
         this.analysis = analysis;
         this.difficulty = difficulty;
+        this.sourceType = sourceType;
+        this.sourceResourceId = sourceResourceId;
+        this.sourceResourceName = sourceResourceName;
+        this.sourcePage = sourcePage;
+        this.sourceExcerpt = sourceExcerpt;
         this.wrongCount = wrongCount;
         this.mastered = mastered;
         this.lastWrongAt = lastWrongAt;
@@ -70,6 +85,26 @@ public class WrongQuestionResponse {
 
     public Integer getDifficulty() {
         return difficulty;
+    }
+
+    public String getSourceType() {
+        return sourceType;
+    }
+
+    public Long getSourceResourceId() {
+        return sourceResourceId;
+    }
+
+    public String getSourceResourceName() {
+        return sourceResourceName;
+    }
+
+    public Integer getSourcePage() {
+        return sourcePage;
+    }
+
+    public String getSourceExcerpt() {
+        return sourceExcerpt;
     }
 
     public Integer getWrongCount() {

@@ -93,6 +93,7 @@
               <button type="button" title="橡皮擦" :class="{ active: tool === 'eraser' }" @click="tool = 'eraser'"><Eraser :size="17" /></button>
               <button type="button" title="撤销" @click="undoAnnotation"><Undo2 :size="17" /></button>
               <button type="button" title="保存标注" @click="saveAnnotations"><Save :size="17" /></button>
+              <button type="button" title="摘录入题库" :disabled="!selectedResource" @click="openExcerptModal"><FileQuestion :size="17" /></button>
             </div>
             <div class="reader-tool-group">
               <button type="button" title="上一页" :disabled="currentPage <= 1" @click="changePage(-1)"><ChevronLeft :size="18" /></button>
@@ -236,6 +237,10 @@
               <CheckCircle2 :size="18" />
               <span>已学习到此</span>
             </button>
+            <button class="resource-secondary" type="button" :disabled="!selectedResource" @click="openExcerptModal">
+              <FileQuestion :size="18" />
+              <span>摘录入题库</span>
+            </button>
           </section>
 
           <section>
@@ -259,6 +264,103 @@
         </aside>
       </section>
     </main>
+
+    <div v-if="excerptModalOpen" class="resource-modal-backdrop" @click.self="closeExcerptModal">
+      <section class="resource-modal" role="dialog" aria-modal="true" aria-label="摘录入题库">
+        <header>
+          <div>
+            <span class="resource-kicker">RESOURCE TO QUESTION</span>
+            <h3>摘录入题库</h3>
+            <p>{{ selectedResource?.name }} · 第 {{ excerptForm.sourcePage || currentPage }} 页</p>
+          </div>
+          <button type="button" aria-label="关闭" @click="closeExcerptModal">×</button>
+        </header>
+        <form class="resource-excerpt-form" @submit.prevent="submitExcerptQuestion">
+          <label>
+            <span>资料摘录</span>
+            <textarea v-model.trim="excerptForm.sourceExcerpt" rows="4" maxlength="4000" placeholder="粘贴或整理从资料中截取的原文" />
+          </label>
+          <label>
+            <span>题目内容 *</span>
+            <textarea v-model.trim="excerptForm.content" required rows="4" maxlength="10000" placeholder="根据摘录整理题干" />
+          </label>
+          <div class="resource-form-grid">
+            <label>
+              <span>题型</span>
+              <select v-model="excerptForm.questionType">
+                <option value="SHORT_ANSWER">简答题</option>
+                <option value="SINGLE_CHOICE">单选题</option>
+                <option value="MULTIPLE_CHOICE">多选题</option>
+                <option value="TRUE_FALSE">判断题</option>
+                <option value="FILL_BLANK">填空题</option>
+              </select>
+            </label>
+            <label>
+              <span>难度</span>
+              <select v-model.number="excerptForm.difficulty">
+                <option v-for="level in 5" :key="level" :value="level">{{ level }} 星</option>
+              </select>
+            </label>
+            <label>
+              <span>页码</span>
+              <input v-model.number="excerptForm.sourcePage" type="number" min="1" />
+            </label>
+            <label>
+              <span>状态</span>
+              <select v-model="excerptForm.status">
+                <option value="DRAFT">草稿</option>
+                <option value="PUBLISHED">已发布</option>
+              </select>
+            </label>
+          </div>
+          <div v-if="excerptIsChoice" class="resource-option-editor">
+            <div>
+              <span>选项</span>
+              <button type="button" :disabled="excerptForm.options.length >= 8" @click="addExcerptOption">添加选项</button>
+            </div>
+            <label v-for="(option, index) in excerptForm.options" :key="index">
+              <span>{{ String.fromCharCode(65 + index) }}</span>
+              <input v-model.trim="excerptForm.options[index]" required maxlength="500" :placeholder="`选项 ${String.fromCharCode(65 + index)}`" />
+              <button v-if="excerptForm.options.length > 2" type="button" aria-label="删除选项" @click="removeExcerptOption(index)">×</button>
+            </label>
+          </div>
+          <div class="resource-form-grid">
+            <label>
+              <span>正确答案 *</span>
+              <input v-model.trim="excerptForm.correctAnswer" required maxlength="1000" placeholder="例如：A，或简答要点" />
+            </label>
+            <label>
+              <span>知识点</span>
+              <input v-model.trim="excerptForm.knowledgePoint" maxlength="80" placeholder="例如：事务管理" />
+            </label>
+          </div>
+          <label>
+            <span>答案解析</span>
+            <textarea v-model.trim="excerptForm.analysis" rows="3" maxlength="10000" placeholder="补充解题思路或资料依据" />
+          </label>
+          <div class="resource-plan-row">
+            <label>
+              <input v-model="excerptForm.createPlan" type="checkbox" />
+              <span>同时加入学习计划</span>
+            </label>
+            <label>
+              <span>计划日期</span>
+              <input v-model="excerptForm.planDate" type="date" :disabled="!excerptForm.createPlan" />
+            </label>
+          </div>
+          <p v-if="excerptError" class="resource-form-error">{{ excerptError }}</p>
+          <footer>
+            <button type="button" @click="closeExcerptModal">取消</button>
+            <button class="resource-primary inline" type="submit" :disabled="excerptSaving">
+              <FileQuestion :size="18" />
+              <span>{{ excerptSaving ? '保存中...' : '加入题库' }}</span>
+            </button>
+          </footer>
+        </form>
+      </section>
+    </div>
+
+    <p v-if="resourceToast" class="resource-toast">{{ resourceToast }}</p>
   </div>
 </template>
 
@@ -273,6 +375,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Eraser,
+  FileQuestion,
   FileText,
   FolderOpen,
   Highlighter,
@@ -296,6 +399,8 @@ import {
   ZoomOut,
 } from '@lucide/vue'
 import {
+  createStudyPlan,
+  createQuestionFromResource,
   deleteLearningResource,
   listLearningResources,
   resolveAssetUrl,
@@ -334,6 +439,26 @@ const surfaceSize = reactive({ width: 900, height: 1180 })
 const renderedSize = reactive({ width: 900, height: 1180 })
 const progressForm = reactive({ progressPercent: 0, currentPage: 1, totalPages: 0, learnedMinutes: 0 })
 const sessionMinutes = ref(0)
+const excerptModalOpen = ref(false)
+const excerptSaving = ref(false)
+const excerptError = ref('')
+const resourceToast = ref('')
+const excerptForm = reactive({
+  content: '',
+  questionType: 'SHORT_ANSWER',
+  options: ['', ''],
+  correctAnswer: '',
+  analysis: '',
+  difficulty: 3,
+  subject: '',
+  knowledgePoint: '',
+  status: 'DRAFT',
+  categoryId: null,
+  sourcePage: 1,
+  sourceExcerpt: '',
+  createPlan: true,
+  planDate: new Date().toISOString().slice(0, 10),
+})
 
 const folders = computed(() => {
   const all = resources.value.length
@@ -370,6 +495,7 @@ const surfaceStyle = computed(() => {
 const visibleAnnotations = computed(() =>
   annotations.value.filter((item) => Number(item.page || 1) === Number(currentPage.value)),
 )
+const excerptIsChoice = computed(() => ['SINGLE_CHOICE', 'MULTIPLE_CHOICE'].includes(excerptForm.questionType))
 
 onMounted(() => {
   loadResources()
@@ -692,6 +818,89 @@ async function saveAnnotations() {
   selectedResource.value = response.data?.data || selectedResource.value
 }
 
+function openExcerptModal() {
+  if (!selectedResource.value) return
+  const excerpt = selectedText() || latestNoteText() || ''
+  excerptForm.sourcePage = Math.max(1, Number(currentPage.value || 1))
+  excerptForm.sourceExcerpt = excerpt
+  excerptForm.content = excerpt ? `根据资料摘录回答：\n${excerpt}` : ''
+  excerptForm.questionType = 'SHORT_ANSWER'
+  excerptForm.options = ['', '']
+  excerptForm.correctAnswer = ''
+  excerptForm.analysis = ''
+  excerptForm.difficulty = 3
+  excerptForm.subject = selectedResource.value.type || ''
+  excerptForm.knowledgePoint = ''
+  excerptForm.status = 'DRAFT'
+  excerptForm.categoryId = null
+  excerptForm.createPlan = true
+  excerptForm.planDate = new Date().toISOString().slice(0, 10)
+  excerptError.value = ''
+  excerptModalOpen.value = true
+}
+
+function closeExcerptModal() {
+  if (excerptSaving.value) return
+  excerptModalOpen.value = false
+  excerptError.value = ''
+}
+
+function addExcerptOption() {
+  if (excerptForm.options.length < 8) excerptForm.options.push('')
+}
+
+function removeExcerptOption(index) {
+  if (excerptForm.options.length > 2) excerptForm.options.splice(index, 1)
+}
+
+async function submitExcerptQuestion() {
+  if (!selectedResource.value) return
+  if (excerptIsChoice.value && excerptForm.options.filter(Boolean).length < 2) {
+    excerptError.value = '选择题至少需要两个有效选项'
+    return
+  }
+  excerptSaving.value = true
+  excerptError.value = ''
+  try {
+    const payload = {
+      content: excerptForm.content,
+      questionType: excerptForm.questionType,
+      options: excerptIsChoice.value ? excerptForm.options.filter(Boolean) : [],
+      correctAnswer: excerptForm.correctAnswer,
+      analysis: excerptForm.analysis || null,
+      difficulty: excerptForm.difficulty,
+      subject: excerptForm.subject || null,
+      knowledgePoint: excerptForm.knowledgePoint || null,
+      status: excerptForm.status,
+      categoryId: excerptForm.categoryId,
+      sourcePage: excerptForm.sourcePage || currentPage.value || 1,
+      sourceExcerpt: excerptForm.sourceExcerpt || null,
+    }
+    const response = await createQuestionFromResource(selectedResource.value.id, payload)
+    const createdQuestion = response.data?.data
+    if (excerptForm.createPlan) {
+      await createStudyPlan({
+        title: `复习资料题：${excerptForm.content.replace(/\s+/g, ' ').trim().slice(0, 42)}`,
+        content: [
+          `从资料《${selectedResource.value.name}》第 ${payload.sourcePage} 页生成。`,
+          payload.sourceExcerpt ? `资料摘录：${payload.sourceExcerpt}` : '',
+          `正确答案：${payload.correctAnswer}`,
+        ].filter(Boolean).join('\n'),
+        planDate: excerptForm.planDate || new Date().toISOString().slice(0, 10),
+        targetType: 'QUESTION',
+        targetId: createdQuestion?.id || null,
+        targetTitle: createdQuestion?.content?.slice?.(0, 120) || excerptForm.content.slice(0, 120),
+      })
+    }
+    excerptModalOpen.value = false
+    showToast(excerptForm.createPlan ? '已加入题库，并同步生成学习计划' : '已加入题库，并保留资料来源')
+  } catch (error) {
+    excerptError.value = error.response?.data?.message || '题目保存失败'
+  } finally {
+    excerptSaving.value = false
+  }
+}
+
 async function markLearnedHere() {
   if (!selectedResource.value) return
   const totalPages = Math.max(0, Number(pageCount.value || progressForm.totalPages || 0))
@@ -713,6 +922,25 @@ async function markLearnedHere() {
   progressForm.learnedMinutes = payload.learnedMinutes
   sessionMinutes.value = 0
   await loadResources()
+}
+
+function selectedText() {
+  const text = window.getSelection?.()?.toString?.().trim()
+  return text && text.length >= 2 ? text.slice(0, 4000) : ''
+}
+
+function latestNoteText() {
+  const note = [...annotations.value]
+    .reverse()
+    .find((item) => item.type === 'note' && Number(item.page || 1) === Number(currentPage.value) && item.text)
+  return note?.text?.trim?.().slice(0, 4000) || ''
+}
+
+function showToast(message) {
+  resourceToast.value = message
+  window.setTimeout(() => {
+    if (resourceToast.value === message) resourceToast.value = ''
+  }, 2600)
 }
 
 async function toggleFavorite(resource) {
@@ -1553,10 +1781,242 @@ function clamp(value, min, max) {
   box-shadow: 0 14px 28px rgba(79, 136, 255, 0.2);
 }
 
+.resource-secondary {
+  display: flex;
+  min-height: 42px;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  color: var(--resource-blue);
+  border: 0;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.68);
+  box-shadow: inset 0 0 0 1px rgba(73, 116, 221, 0.14);
+  font-weight: 900;
+}
+
 .resource-primary:disabled {
   cursor: not-allowed;
   filter: grayscale(0.35);
   opacity: 0.55;
+}
+
+.resource-primary.inline {
+  width: auto;
+  min-width: 132px;
+  padding: 0 18px;
+}
+
+.resource-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(20, 34, 70, 0.32);
+  backdrop-filter: blur(10px);
+}
+
+.resource-modal {
+  width: min(760px, 100%);
+  max-height: min(92vh, 860px);
+  overflow: auto;
+  color: var(--resource-ink);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(247, 251, 255, 0.94)),
+    repeating-linear-gradient(135deg, rgba(79, 136, 255, 0.028) 0 1px, transparent 1px 11px);
+  box-shadow:
+    0 26px 70px rgba(38, 58, 118, 0.25),
+    inset 0 0 0 1px rgba(73, 116, 221, 0.16);
+}
+
+.resource-modal header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 22px 14px;
+  border-bottom: 1px solid rgba(73, 116, 221, 0.12);
+}
+
+.resource-modal h3,
+.resource-modal p {
+  margin: 0;
+}
+
+.resource-modal h3 {
+  margin-top: 4px;
+  font-size: 24px;
+}
+
+.resource-modal p {
+  margin-top: 6px;
+  color: var(--resource-muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.resource-modal header > button,
+.resource-option-editor label > button {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  cursor: pointer;
+  color: var(--resource-blue);
+  border: 0;
+  border-radius: 6px;
+  background: rgba(79, 136, 255, 0.08);
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.resource-excerpt-form {
+  display: grid;
+  gap: 14px;
+  padding: 18px 22px 22px;
+}
+
+.resource-excerpt-form label {
+  display: grid;
+  gap: 7px;
+}
+
+.resource-excerpt-form label > span,
+.resource-option-editor > div span {
+  color: var(--resource-muted);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.resource-excerpt-form input,
+.resource-excerpt-form select,
+.resource-excerpt-form textarea {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  border-radius: 6px;
+  outline: none;
+  color: var(--resource-ink);
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow: inset 0 0 0 1px rgba(73, 116, 221, 0.14);
+  font: inherit;
+  font-weight: 800;
+}
+
+.resource-excerpt-form input,
+.resource-excerpt-form select {
+  min-height: 40px;
+  padding: 0 11px;
+}
+
+.resource-excerpt-form textarea {
+  resize: vertical;
+  padding: 11px;
+  line-height: 1.6;
+}
+
+.resource-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.resource-plan-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 180px;
+  gap: 12px;
+  align-items: end;
+  padding: 12px;
+  border-radius: 6px;
+  background: rgba(79, 136, 255, 0.06);
+  box-shadow: inset 0 0 0 1px rgba(73, 116, 221, 0.1);
+}
+
+.resource-plan-row label:first-child {
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: center;
+}
+
+.resource-plan-row input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  min-height: 18px;
+  padding: 0;
+  accent-color: var(--resource-blue);
+}
+
+.resource-option-editor {
+  display: grid;
+  gap: 9px;
+  padding: 12px;
+  border-radius: 6px;
+  background: rgba(79, 136, 255, 0.06);
+}
+
+.resource-option-editor > div,
+.resource-excerpt-form footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.resource-option-editor > div button,
+.resource-excerpt-form footer > button {
+  min-height: 38px;
+  cursor: pointer;
+  border: 0;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: inset 0 0 0 1px rgba(73, 116, 221, 0.14);
+  color: var(--resource-blue);
+  font-weight: 900;
+}
+
+.resource-excerpt-form footer > .resource-primary {
+  color: #fff;
+  background: linear-gradient(100deg, var(--resource-blue), var(--resource-cyan), var(--resource-pink));
+  box-shadow: 0 14px 28px rgba(79, 136, 255, 0.2);
+}
+
+.resource-option-editor > div button {
+  padding: 0 12px;
+}
+
+.resource-option-editor label {
+  grid-template-columns: 24px minmax(0, 1fr) 32px;
+  align-items: center;
+  gap: 8px;
+}
+
+.resource-option-editor label > span {
+  color: var(--resource-blue);
+  text-align: center;
+}
+
+.resource-form-error {
+  margin: 0;
+  color: #d9415f;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.resource-toast {
+  position: fixed;
+  right: 22px;
+  bottom: 22px;
+  z-index: 1200;
+  margin: 0;
+  padding: 12px 16px;
+  color: #fff;
+  border-radius: 6px;
+  background: linear-gradient(100deg, var(--resource-blue), var(--resource-cyan), var(--resource-pink));
+  box-shadow: 0 18px 38px rgba(79, 136, 255, 0.24);
+  font-weight: 900;
 }
 
 .resource-inspector dl {
@@ -1655,6 +2115,18 @@ function clamp(value, min, max) {
 
   .resource-inspector {
     grid-template-columns: 1fr;
+  }
+
+  .resource-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .resource-plan-row {
+    grid-template-columns: 1fr;
+  }
+
+  .resource-modal-backdrop {
+    padding: 12px;
   }
 }
 </style>

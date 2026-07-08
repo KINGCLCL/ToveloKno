@@ -6,7 +6,9 @@ import backend.backend.common.ApiResponse;
 import backend.backend.common.PageResponse;
 import backend.backend.learningresource.LearningResourceDtos.AnnotationsRequest;
 import backend.backend.learningresource.LearningResourceDtos.ProgressRequest;
+import backend.backend.learningresource.LearningResourceDtos.ResourceQuestionRequest;
 import backend.backend.learningresource.LearningResourceDtos.ResourceResponse;
+import backend.backend.question.QuestionResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -84,6 +86,17 @@ public class LearningResourceController {
         return ApiResponse.success(
                 "标注已保存",
                 learningResourceService.updateAnnotations(resourceId, currentUser, request.annotations())
+        );
+    }
+
+    @PostMapping("/{resourceId}/questions")
+    public ApiResponse<QuestionResponse> createQuestionFromExcerpt(
+            @CurrentUser AuthenticatedUser currentUser,
+            @PathVariable Long resourceId,
+            @Valid @org.springframework.web.bind.annotation.RequestBody ResourceQuestionRequest request) {
+        return ApiResponse.success(
+                "题目已加入题库",
+                learningResourceService.createQuestionFromExcerpt(resourceId, currentUser, request)
         );
     }
 

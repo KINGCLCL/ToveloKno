@@ -45,6 +45,20 @@ public class QuestionSaveRequest {
 
     private Long categoryId;
 
+    @Size(max = 40)
+    private String sourceType;
+
+    private Long sourceResourceId;
+
+    @Size(max = 180)
+    private String sourceResourceName;
+
+    @Min(1)
+    private Integer sourcePage;
+
+    @Size(max = 4000)
+    private String sourceExcerpt;
+
     public String getContent() {
         return content;
     }
@@ -123,5 +137,45 @@ public class QuestionSaveRequest {
 
     public void setCategoryId(Long categoryId) {
         this.categoryId = categoryId;
+    }
+
+    public String getSourceType() {
+        return sourceType;
+    }
+
+    public void setSourceType(String sourceType) {
+        this.sourceType = sourceType;
+    }
+
+    public Long getSourceResourceId() {
+        return sourceResourceId;
+    }
+
+    public void setSourceResourceId(Long sourceResourceId) {
+        this.sourceResourceId = sourceResourceId;
+    }
+
+    public String getSourceResourceName() {
+        return sourceResourceName;
+    }
+
+    public void setSourceResourceName(String sourceResourceName) {
+        this.sourceResourceName = sourceResourceName;
+    }
+
+    public Integer getSourcePage() {
+        return sourcePage;
+    }
+
+    public void setSourcePage(Integer sourcePage) {
+        this.sourcePage = sourcePage;
+    }
+
+    public String getSourceExcerpt() {
+        return sourceExcerpt;
+    }
+
+    public void setSourceExcerpt(String sourceExcerpt) {
+        this.sourceExcerpt = sourceExcerpt;
     }
 }

@@ -19,6 +19,11 @@ public class QuestionResponse {
     private final String knowledgePoint;
     private final QuestionStatus status;
     private final Long categoryId;
+    private final String sourceType;
+    private final Long sourceResourceId;
+    private final String sourceResourceName;
+    private final Integer sourcePage;
+    private final String sourceExcerpt;
     private final Long createdBy;
     private final boolean deleted;
     private final LocalDateTime deletedAt;
@@ -37,6 +42,11 @@ public class QuestionResponse {
             String knowledgePoint,
             QuestionStatus status,
             Long categoryId,
+            String sourceType,
+            Long sourceResourceId,
+            String sourceResourceName,
+            Integer sourcePage,
+            String sourceExcerpt,
             Long createdBy,
             boolean deleted,
             LocalDateTime deletedAt,
@@ -53,6 +63,11 @@ public class QuestionResponse {
         this.knowledgePoint = knowledgePoint;
         this.status = status;
         this.categoryId = categoryId;
+        this.sourceType = sourceType;
+        this.sourceResourceId = sourceResourceId;
+        this.sourceResourceName = sourceResourceName;
+        this.sourcePage = sourcePage;
+        this.sourceExcerpt = sourceExcerpt;
         this.createdBy = createdBy;
         this.deleted = deleted;
         this.deletedAt = deletedAt;
@@ -102,6 +117,26 @@ public class QuestionResponse {
 
     public Long getCategoryId() {
         return categoryId;
+    }
+
+    public String getSourceType() {
+        return sourceType;
+    }
+
+    public Long getSourceResourceId() {
+        return sourceResourceId;
+    }
+
+    public String getSourceResourceName() {
+        return sourceResourceName;
+    }
+
+    public Integer getSourcePage() {
+        return sourcePage;
+    }
+
+    public String getSourceExcerpt() {
+        return sourceExcerpt;
     }
 
     public Long getCreatedBy() {

@@ -71,6 +71,7 @@ public class StudyPlanService {
         plan.setTitle(request.getTitle());
         plan.setContent(request.getContent());
         plan.setPlanDate(request.getPlanDate());
+        applyTarget(plan, request);
         plan.setStatus("pending");
         plan.setCreatedAt(LocalDateTime.now());
         plan.setUpdatedAt(LocalDateTime.now());
@@ -96,6 +97,7 @@ public class StudyPlanService {
         plan.setTitle(request.getTitle());
         plan.setContent(request.getContent());
         plan.setPlanDate(request.getPlanDate());
+        applyTarget(plan, request);
         plan.setUpdatedAt(LocalDateTime.now());
 
         StudyPlan saved = studyPlanRepository.save(plan);
@@ -168,10 +170,27 @@ public class StudyPlanService {
                 plan.getTitle(),
                 plan.getContent(),
                 plan.getPlanDate(),
+                plan.getTargetType(),
+                plan.getTargetId(),
+                plan.getTargetTitle(),
                 plan.getStatus(),
                 plan.getCompletedAt(),
                 plan.getCreatedAt(),
                 plan.getUpdatedAt()
         );
+    }
+
+    private void applyTarget(StudyPlan plan, StudyPlanRequest request) {
+        plan.setTargetType(normalizeText(request.getTargetType(), 40));
+        plan.setTargetId(request.getTargetId());
+        plan.setTargetTitle(normalizeText(request.getTargetTitle(), 180));
+    }
+
+    private String normalizeText(String value, int maxLength) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        String normalized = value.trim();
+        return normalized.length() <= maxLength ? normalized : normalized.substring(0, maxLength);
     }
 }

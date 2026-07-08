@@ -1,0 +1,13 @@
+package backend.backend.homebanner;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.util.List;
+import java.util.Optional;
+
+public interface HomeBannerRepository extends JpaRepository<HomeBanner, Long> {
+
+    List<HomeBanner> findAllByOrderBySortOrderAscIdAsc();
+
+    Optional<HomeBanner> findByBannerKey(String bannerKey);
+}

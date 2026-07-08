@@ -14,6 +14,7 @@
         <article><span>全部计划</span><strong>{{ total }}</strong></article>
         <article><span>当前页待完成</span><strong>{{ pendingCount }}</strong></article>
         <article><span>当前页完成率</span><strong>{{ completionRate }}%</strong></article>
+        <article><span>资料摘录题</span><strong>{{ linkOverview.resourceQuestionCount ?? '-' }}</strong></article>
       </section>
       <section class="full-link-stack">
         <button type="button" @click="emit('open-module', 'wrong')">查看错题本</button>
@@ -59,6 +60,7 @@
           <div class="plan-copy">
             <span>{{ statusLabel(plan.status) }}</span>
             <h3>{{ plan.title }}</h3>
+            <em v-if="plan.targetTitle" class="plan-target">{{ targetTypeLabel(plan.targetType) }}：{{ plan.targetTitle }}</em>
             <p>{{ plan.content || '暂无详细内容，保持计划队列清晰。' }}</p>
             <small>更新于 {{ formatDateTime(plan.updatedAt) }}</small>
           </div>
@@ -89,6 +91,22 @@
         <form class="full-form" @submit.prevent="submitPlan">
           <label><span>标题</span><input v-model.trim="form.title" required maxlength="150" placeholder="例如：复习第三章" /></label>
           <label><span>日期</span><input v-model="form.planDate" required type="date" /></label>
+          <div class="plan-target-grid">
+            <label>
+              <span>关联类型</span>
+              <select v-model="form.targetType">
+                <option value="">不关联</option>
+                <option value="RESOURCE">学习资料</option>
+                <option value="QUESTION">题库题目</option>
+                <option value="WRONG_QUESTION">错题复盘</option>
+              </select>
+            </label>
+            <label>
+              <span>关联 ID</span>
+              <input v-model.number="form.targetId" type="number" min="1" placeholder="可选" />
+            </label>
+          </div>
+          <label><span>关联标题</span><input v-model.trim="form.targetTitle" maxlength="180" placeholder="例如：第三章 PDF / 第 12 题" /></label>
           <label><span>内容</span><textarea v-model.trim="form.content" maxlength="2000" rows="5" placeholder="记录具体学习内容" /></label>
           <p v-if="error" class="full-error">{{ error }}</p>
           <footer>
@@ -106,6 +124,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import {
   createStudyPlan,
   deleteStudyPlan,
+  fetchStudyLinkOverview,
   listStudyPlans,
   updateStudyPlan,
   updateStudyPlanStatus,
@@ -124,7 +143,15 @@ const size = 8
 const total = ref(0)
 const totalPages = ref(1)
 const filters = reactive({ status: '', planDate: '' })
-const form = reactive({ title: '', content: '', planDate: new Date().toISOString().slice(0, 10) })
+const linkOverview = ref({})
+const form = reactive({
+  title: '',
+  content: '',
+  planDate: new Date().toISOString().slice(0, 10),
+  targetType: '',
+  targetId: null,
+  targetTitle: '',
+})
 
 const pendingCount = computed(() => plans.value.filter((plan) => plan.status === 'pending').length)
 const completionRate = computed(() => {
@@ -132,7 +159,19 @@ const completionRate = computed(() => {
   return Math.round((plans.value.filter((plan) => plan.status === 'completed').length / plans.value.length) * 100)
 })
 
-onMounted(loadPlans)
+onMounted(() => {
+  loadPlans()
+  loadStudyLinks()
+})
+
+async function loadStudyLinks() {
+  try {
+    const response = await fetchStudyLinkOverview()
+    linkOverview.value = response.data?.data || {}
+  } catch {
+    linkOverview.value = {}
+  }
+}
 
 async function loadPlans() {
   loading.value = true
@@ -168,6 +207,9 @@ function openEditor(plan = null) {
   form.title = plan?.title || ''
   form.content = plan?.content || ''
   form.planDate = plan?.planDate || new Date().toISOString().slice(0, 10)
+  form.targetType = plan?.targetType || ''
+  form.targetId = plan?.targetId || null
+  form.targetTitle = plan?.targetTitle || ''
   error.value = ''
   editorOpen.value = true
 }
@@ -185,7 +227,14 @@ async function submitPlan() {
   saving.value = true
   error.value = ''
   try {
-    const payload = { title: form.title, content: form.content || null, planDate: form.planDate }
+    const payload = {
+      title: form.title,
+      content: form.content || null,
+      planDate: form.planDate,
+      targetType: form.targetType || null,
+      targetId: form.targetType ? form.targetId || null : null,
+      targetTitle: form.targetType ? form.targetTitle || null : null,
+    }
     if (editingPlan.value) {
       await updateStudyPlan(editingPlan.value.id, payload)
     } else {
@@ -193,6 +242,7 @@ async function submitPlan() {
     }
     closeEditor()
     await loadPlans()
+    await loadStudyLinks()
   } catch (err) {
     error.value = err.response?.data?.message || '保存失败'
   } finally {
@@ -203,16 +253,26 @@ async function submitPlan() {
 async function updateStatus(plan, status) {
   await updateStudyPlanStatus(plan.id, status)
   await loadPlans()
+  await loadStudyLinks()
 }
 
 async function removePlan(id) {
   await deleteStudyPlan(id)
   if (plans.value.length === 1 && page.value > 1) page.value -= 1
   await loadPlans()
+  await loadStudyLinks()
 }
 
 function statusLabel(status) {
   return { pending: '待完成', completed: '已完成', cancelled: '已取消' }[status] || status
+}
+
+function targetTypeLabel(type) {
+  return {
+    RESOURCE: '资料',
+    QUESTION: '题目',
+    WRONG_QUESTION: '错题',
+  }[type] || '关联'
 }
 
 function dateMonth(date) {
@@ -228,3 +288,35 @@ function formatDateTime(value) {
   return value.replace('T', ' ').slice(0, 16)
 }
 </script>
+
+<style scoped>
+.plan-target {
+  display: inline-flex;
+  width: fit-content;
+  max-width: 100%;
+  margin: -2px 0 6px;
+  padding: 5px 8px;
+  overflow: hidden;
+  color: #244995;
+  border: 1px solid rgba(60, 94, 210, 0.14);
+  border-radius: 6px;
+  background: rgba(236, 242, 255, 0.62);
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.plan-target-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 150px;
+  gap: 12px;
+}
+
+@media (max-width: 720px) {
+  .plan-target-grid {
+    grid-template-columns: 1fr;
+  }
+}
+</style>

@@ -58,6 +58,21 @@ public class Question {
     @Column(name = "category_id")
     private Long categoryId;
 
+    @Column(name = "source_type", length = 40)
+    private String sourceType;
+
+    @Column(name = "source_resource_id")
+    private Long sourceResourceId;
+
+    @Column(name = "source_resource_name", length = 180)
+    private String sourceResourceName;
+
+    @Column(name = "source_page")
+    private Integer sourcePage;
+
+    @Column(name = "source_excerpt", columnDefinition = "TEXT")
+    private String sourceExcerpt;
+
     @Column(name = "created_by", nullable = false)
     private Long createdBy;
 
@@ -177,6 +192,46 @@ public class Question {
 
     public void setCategoryId(Long categoryId) {
         this.categoryId = categoryId;
+    }
+
+    public String getSourceType() {
+        return sourceType;
+    }
+
+    public void setSourceType(String sourceType) {
+        this.sourceType = sourceType;
+    }
+
+    public Long getSourceResourceId() {
+        return sourceResourceId;
+    }
+
+    public void setSourceResourceId(Long sourceResourceId) {
+        this.sourceResourceId = sourceResourceId;
+    }
+
+    public String getSourceResourceName() {
+        return sourceResourceName;
+    }
+
+    public void setSourceResourceName(String sourceResourceName) {
+        this.sourceResourceName = sourceResourceName;
+    }
+
+    public Integer getSourcePage() {
+        return sourcePage;
+    }
+
+    public void setSourcePage(Integer sourcePage) {
+        this.sourcePage = sourcePage;
+    }
+
+    public String getSourceExcerpt() {
+        return sourceExcerpt;
+    }
+
+    public void setSourceExcerpt(String sourceExcerpt) {
+        this.sourceExcerpt = sourceExcerpt;
     }
 
     public Long getCreatedBy() {

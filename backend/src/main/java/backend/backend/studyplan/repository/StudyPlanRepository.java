@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -19,6 +20,10 @@ public interface StudyPlanRepository extends JpaRepository<StudyPlan, Long> {
      * 根据 id 和 userId 查询单条计划，确保数据归属校验。
      */
     Optional<StudyPlan> findByIdAndUserId(Long id, Long userId);
+
+    long countByUserIdAndStatus(Long userId, String status);
+
+    List<StudyPlan> findTop5ByUserIdOrderByPlanDateDescCreatedAtDesc(Long userId);
 
     /**
      * 分页查询当前用户的学习计划，支持按状态和日期筛选。

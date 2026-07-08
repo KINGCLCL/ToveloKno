@@ -123,7 +123,12 @@
                   <template v-else>
                     <tr v-for="question in questionRows" :key="question.id">
                       <td><input v-model="selectedQuestionIds" type="checkbox" :value="question.id" /></td>
-                      <td><button class="bank-title-link" type="button" @click="openViewEditor(question)">{{ question.content }}</button></td>
+                      <td>
+                        <button class="bank-title-link" type="button" @click="openViewEditor(question)">{{ question.content }}</button>
+                        <small v-if="question.sourceResourceName" class="bank-source-line">
+                          <LineIcon name="book-open" /> {{ question.sourceResourceName }}{{ question.sourcePage ? ` · P${question.sourcePage}` : '' }}
+                        </small>
+                      </td>
                       <td><strong>{{ question.subject || '未分类' }}</strong><small>{{ question.knowledgePoint || '暂无知识点' }}</small></td>
                       <td><span class="bank-pill neutral">{{ questionTypeLabel(question.questionType) }}</span></td>
                       <td><span class="bank-stars">{{ difficultyStars(question.difficulty) }}</span></td>
@@ -402,6 +407,13 @@
             <label><span>发布状态 *</span><select v-model="questionForm.status" :disabled="editorMode === 'view'" required><option value="DRAFT">草稿</option><option value="PUBLISHED">已发布</option></select></label>
           </div>
           <label><span>答案解析</span><textarea v-model.trim="questionForm.analysis" :disabled="editorMode === 'view'" maxlength="10000" rows="3" placeholder="请输入解题思路或知识点说明" /></label>
+          <section v-if="questionForm.sourceResourceName || questionForm.sourceExcerpt" class="bank-source-panel">
+            <div>
+              <span><LineIcon name="book-open" />资料来源</span>
+              <strong>{{ questionForm.sourceResourceName || '学习资料' }}{{ questionForm.sourcePage ? ` · P${questionForm.sourcePage}` : '' }}</strong>
+            </div>
+            <p v-if="questionForm.sourceExcerpt">{{ questionForm.sourceExcerpt }}</p>
+          </section>
           <p v-if="editorError" class="bank-form-error">{{ editorError }}</p>
           <footer>
             <button class="bank-btn" type="button" @click="closeEditor">{{ editorMode === 'view' ? '关闭' : '取消' }}</button>
@@ -654,6 +666,11 @@ const questionForm = reactive({
   knowledgePoint: '',
   status: 'DRAFT',
   categoryId: null,
+  sourceType: null,
+  sourceResourceId: null,
+  sourceResourceName: '',
+  sourcePage: null,
+  sourceExcerpt: '',
 })
 const settings = reactive({
   bankName: '计算机基础题库',
@@ -1434,6 +1451,11 @@ function resetQuestionForm(question = null) {
     knowledgePoint: question?.knowledgePoint || '',
     status: question?.status || 'DRAFT',
     categoryId: question?.categoryId ?? null,
+    sourceType: question?.sourceType || null,
+    sourceResourceId: question?.sourceResourceId || null,
+    sourceResourceName: question?.sourceResourceName || '',
+    sourcePage: question?.sourcePage || null,
+    sourceExcerpt: question?.sourceExcerpt || '',
   })
 }
 
@@ -1658,6 +1680,11 @@ async function submitQuestion() {
     knowledgePoint: questionForm.knowledgePoint || null,
     status: questionForm.status,
     categoryId: questionForm.categoryId,
+    sourceType: questionForm.sourceType || null,
+    sourceResourceId: questionForm.sourceResourceId || null,
+    sourceResourceName: questionForm.sourceResourceName || null,
+    sourcePage: questionForm.sourcePage || null,
+    sourceExcerpt: questionForm.sourceExcerpt || null,
   }
   try {
     if (editingQuestionId.value) {

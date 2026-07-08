@@ -1,7 +1,7 @@
 :root {
-  font-family: Inter, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
-  color: #263663;
-  background: #f5f8ff;
+  font-family: "Yu Mincho", "YuMincho", "Hiragino Mincho ProN", "Songti SC", "SimSun", "Noto Serif CJK SC", "Times New Roman", serif;
+  color: #183a83;
+  background: #f8fbff;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   --bank-blue: #5678dc;
@@ -15,7 +15,13 @@
 
 * { box-sizing: border-box; }
 html, body, #question-bank-app { min-width: 320px; min-height: 100%; margin: 0; }
-body { min-height: 100vh; background: #f6f9ff; }
+body {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 12% 10%, rgba(151, 190, 255, 0.28), transparent 30%),
+    radial-gradient(circle at 90% 12%, rgba(255, 199, 229, 0.36), transparent 28%),
+    linear-gradient(135deg, #eef6ff 0%, #fff8fd 54%, #eef4ff 100%);
+}
 button, input, select, textarea { font: inherit; }
 button { color: inherit; }
 button, select { cursor: pointer; }
@@ -381,6 +387,8 @@ button, select { cursor: pointer; }
 .question-table th:nth-child(2) { width: 32%; }
 .bank-title-link { max-width: 430px; overflow: hidden; padding: 0; border: 0; background: transparent; color: #3d5eae; font-weight: 600; text-align: left; text-overflow: ellipsis; white-space: nowrap; }
 .bank-title-link:hover { text-decoration: underline; }
+.bank-source-line { display: inline-flex; align-items: center; gap: 4px; max-width: 430px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bank-source-line .line-icon { width: 12px; height: 12px; }
 .bank-pill { display: inline-flex; align-items: center; min-height: 22px; padding: 0 7px; border-radius: 6px; font-size: 9px; }
 .bank-pill.success { color: #31835c; background: #e8f6ef; }
 .bank-pill.draft { color: #7c6ab7; background: #f0edfa; }
@@ -677,6 +685,10 @@ input[type="checkbox"]:not([role="switch"]) { accent-color: #5d7edb; }
 .bank-option-editor > label b { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 6px; color: #5873c1; background: #e6edfc; font-size: 9px; }
 .bank-option-editor > label input { min-height: 34px; }
 .bank-option-editor > label button { width: 27px; height: 27px; border: 0; color: #bd6872; background: transparent; font-size: 16px; }
+.bank-source-panel { display: grid; gap: 8px; padding: 12px; border: 1px solid #dce5f6; border-radius: 8px; color: #5d6f9f; background: #f8faff; }
+.bank-source-panel > div { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.bank-source-panel span { display: inline-flex; align-items: center; gap: 6px; color: #6076ad; font-size: 10px; font-weight: 900; }
+.bank-source-panel p { max-height: 110px; overflow: auto; margin: 0; color: #60719c; font-size: 11px; line-height: 1.65; }
 .bank-editor-form > footer { display: flex; justify-content: flex-end; gap: 9px; padding-top: 5px; }
 .bank-practice-progress { display: flex; align-items: center; gap: 10px; padding: 13px 22px 0; color: #7887aa; font-size: 9px; }
 .bank-practice-progress > i { display: block; flex: 1; height: 7px; overflow: hidden; border-radius: 99px; background: #e7edf8; }
@@ -756,17 +768,24 @@ input[type="checkbox"]:not([role="switch"]) { accent-color: #5d7edb; }
   --bank-blue-deep: #123985;
   --bank-blue-soft: rgba(236, 242, 255, 0.74);
   --bank-line: rgba(60, 94, 210, 0.16);
+  --bank-line-strong: rgba(60, 94, 210, 0.28);
   --bank-muted: #7184b7;
   --bank-panel: rgba(255, 255, 255, 0.66);
+  --bank-pink: #e6c2f1;
+  --bank-gold: #d8a94f;
   --bank-shadow: 0 14px 34px rgba(77, 103, 180, 0.09);
 }
 
 .bank-app {
   grid-template-columns: 248px minmax(0, 1fr);
+  min-height: 100vh;
+  font-family: inherit;
   color: var(--bank-blue-deep);
   background:
-    linear-gradient(118deg, transparent 0 28%, rgba(50, 108, 255, 0.1) 28.1% 28.35%, transparent 28.5%),
-    repeating-linear-gradient(135deg, rgba(60, 94, 210, 0.035) 0 1px, transparent 1px 12px),
+    radial-gradient(circle at 9% 11%, rgba(157, 183, 255, 0.2), transparent 28%),
+    radial-gradient(circle at 92% 12%, rgba(243, 182, 236, 0.16), transparent 30%),
+    linear-gradient(118deg, transparent 0 28%, rgba(50, 108, 255, 0.08) 28.1% 28.35%, transparent 28.5%),
+    repeating-linear-gradient(135deg, rgba(60, 94, 210, 0.026) 0 1px, transparent 1px 12px),
     transparent;
 }
 
@@ -779,6 +798,7 @@ input[type="checkbox"]:not([role="switch"]) { accent-color: #5d7edb; }
 }
 
 .bank-brand {
+  min-height: 76px;
   border-bottom-color: var(--bank-line);
 }
 
@@ -792,12 +812,17 @@ input[type="checkbox"]:not([role="switch"]) { accent-color: #5d7edb; }
 .bank-brand strong,
 .bank-page-heading h1,
 .bank-card-head h2,
-.bank-user strong {
+.bank-user strong,
+.bank-modal > header h2,
+.bank-practice-question h3 {
   color: var(--bank-blue-deep);
 }
 
 .bank-brand small {
-  display: none;
+  color: var(--bank-blue);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0;
 }
 
 .bank-nav {
@@ -878,6 +903,38 @@ input[type="checkbox"]:not([role="switch"]) { accent-color: #5d7edb; }
   clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 0 100%);
 }
 
+.bank-card,
+.bank-stat-card,
+.bank-relation-summary article,
+.bank-mode-card,
+.bank-today-grid > div {
+  position: relative;
+}
+
+.bank-card::before,
+.bank-stat-card::before,
+.bank-relation-summary article::before,
+.bank-mode-card::before,
+.bank-today-grid > div::before {
+  position: absolute;
+  top: -1px;
+  right: -1px;
+  width: 18px;
+  height: 18px;
+  border-left: 1px solid rgba(60, 94, 210, 0.18);
+  border-bottom: 1px solid rgba(60, 94, 210, 0.18);
+  background: rgba(255, 255, 255, 0.72);
+  content: "";
+}
+
+.bank-card > *,
+.bank-stat-card > *,
+.bank-relation-summary article > *,
+.bank-mode-card > *,
+.bank-today-grid > div > * {
+  position: relative;
+}
+
 .bank-page {
   background:
     linear-gradient(90deg, rgba(247, 251, 255, 0.98) 0%, rgba(255, 249, 254, 0.72) 52%, rgba(237, 244, 255, 0.08) 100%) right top 72px / 900px 240px no-repeat,
@@ -896,9 +953,27 @@ input[type="checkbox"]:not([role="switch"]) { accent-color: #5d7edb; }
   padding: 30px;
 }
 
+.bank-page-heading {
+  min-height: 118px;
+  padding: 24px 26px;
+  border: 1px solid var(--bank-line);
+  background:
+    linear-gradient(105deg, rgba(236, 242, 255, 0.9) 0 46%, rgba(255, 249, 254, 0.62) 46.2%),
+    repeating-linear-gradient(135deg, rgba(60, 94, 210, 0.035) 0 1px, transparent 1px 10px);
+  clip-path: polygon(0 0, calc(100% - 22px) 0, 100% 22px, 100% 100%, 0 100%);
+}
+
 .bank-page-heading p {
   color: var(--bank-blue);
+  font-size: 11px;
+  font-weight: 900;
   letter-spacing: 0;
+}
+
+.bank-page-heading h1 {
+  font-size: clamp(32px, 3.7vw, 54px);
+  font-style: italic;
+  line-height: 0.95;
 }
 
 .bank-page-heading > div > span,
@@ -910,12 +985,55 @@ input[type="checkbox"]:not([role="switch"]) { accent-color: #5d7edb; }
   color: var(--bank-muted);
 }
 
+.bank-card-head h2,
+.bank-mode-card strong,
+.bank-record-row strong,
+.bank-toggle-list strong,
+.bank-info-list dd,
+.bank-table td strong,
+.bank-title-link {
+  font-weight: 900;
+}
+
+.bank-breadcrumb,
+.bank-global-search input,
+.bank-filterbar input,
+.bank-filterbar select,
+.bank-inner-search,
+.bank-practice-controls select,
+.bank-table,
+.bank-mini-table,
+.bank-info-list input,
+.bank-info-list textarea,
+.bank-modal-form input,
+.bank-modal-form select,
+.bank-modal-form textarea,
+.bank-text-answer textarea {
+  font-family: "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif;
+}
+
+.bank-breadcrumb,
+.bank-table,
+.bank-filterbar input,
+.bank-filterbar select,
+.bank-modal-form input,
+.bank-modal-form select,
+.bank-modal-form textarea {
+  font-size: 12px;
+}
+
 .bank-global-search,
 .bank-filterbar,
 .bank-practice-controls select,
 .bank-form-grid input,
 .bank-form-grid select,
 .bank-form-grid textarea,
+.bank-inner-search,
+.bank-info-list input,
+.bank-info-list textarea,
+.bank-modal-form input,
+.bank-modal-form select,
+.bank-modal-form textarea,
 .bank-text-answer textarea {
   border-color: var(--bank-line);
   background: rgba(255, 255, 255, 0.62);
@@ -923,10 +1041,12 @@ input[type="checkbox"]:not([role="switch"]) { accent-color: #5d7edb; }
 
 .bank-btn.primary,
 .bank-segmented button.active,
-.bank-login-submit {
+.bank-login-submit,
+.bank-table-footer button.active,
+.bank-submit {
   color: #fff;
   border-color: transparent;
-  background: linear-gradient(100deg, #6f98ff, #e6c2f1);
+  background: linear-gradient(100deg, #6f98ff, var(--bank-pink));
   box-shadow: 8px 8px 0 rgba(157, 183, 255, 0.12);
 }
 
@@ -934,9 +1054,29 @@ input[type="checkbox"]:not([role="switch"]) { accent-color: #5d7edb; }
 .bank-back-home,
 .bank-icon-button,
 .bank-collapse,
-.bank-user {
+.bank-user,
+.bank-table-footer button,
+.bank-batchbar button,
+.bank-mini-table button,
+.bank-option-head button {
   border-color: var(--bank-line);
   background: rgba(255, 255, 255, 0.5);
+}
+
+.bank-btn,
+.bank-back-home,
+.bank-icon-button,
+.bank-collapse,
+.bank-user,
+.bank-segmented button,
+.bank-table-footer button,
+.bank-batchbar button,
+.bank-text-btn,
+.bank-mini-table button,
+.bank-tree button,
+.bank-count-link,
+.bank-modal button {
+  font-weight: 900;
 }
 
 .bank-back-home {
@@ -963,7 +1103,7 @@ input[type="checkbox"]:not([role="switch"]) { accent-color: #5d7edb; }
   border: 2px solid rgba(255, 255, 255, 0.94);
   border-radius: 0;
   color: #fff;
-  background: linear-gradient(135deg, #6f98ff, #e6c2f1);
+  background: linear-gradient(135deg, #6f98ff, var(--bank-pink));
   clip-path: polygon(24% 4%, 76% 4%, 100% 50%, 76% 96%, 24% 96%, 0 50%);
   box-shadow: 6px 6px 0 rgba(216, 169, 79, 0.12);
 }
@@ -983,6 +1123,7 @@ input[type="checkbox"]:not([role="switch"]) { accent-color: #5d7edb; }
 .bank-table th {
   color: var(--bank-blue);
   background: rgba(236, 242, 255, 0.82);
+  font-weight: 900;
 }
 
 .bank-table td,
@@ -993,15 +1134,86 @@ input[type="checkbox"]:not([role="switch"]) { accent-color: #5d7edb; }
   border-color: var(--bank-line);
 }
 
+.bank-table td {
+  color: #5c6f9f;
+}
+
+.bank-table tbody tr:hover {
+  background: rgba(236, 242, 255, 0.52);
+}
+
+.bank-source-line {
+  color: var(--bank-muted);
+  font-family: "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.bank-pill,
+.bank-tag-chip,
+.bank-count-link {
+  font-weight: 900;
+}
+
 .bank-tag-chip,
 .bank-type,
+.bank-pill,
 .bank-practice-meta span,
 .bank-relation-summary article,
-.bank-today-grid > div {
+.bank-today-grid > div,
+.bank-streak {
   border-radius: 4px;
   color: var(--bank-blue-deep);
   border: 1px solid rgba(60, 94, 210, 0.12);
   background: rgba(236, 242, 255, 0.72);
+}
+
+.bank-pill.success {
+  color: #2f805d;
+  border-color: rgba(47, 128, 93, 0.18);
+  background: rgba(232, 246, 239, 0.76);
+}
+
+.bank-pill.draft {
+  color: #8164b9;
+  border-color: rgba(129, 100, 185, 0.16);
+  background: rgba(243, 239, 255, 0.76);
+}
+
+.bank-stars {
+  color: var(--bank-gold);
+}
+
+.bank-row-actions button {
+  border-color: transparent;
+  border-radius: 4px;
+}
+
+.bank-row-actions button:hover,
+.bank-tree button:hover,
+.bank-tree button.active,
+.bank-profile-menu button:hover {
+  color: var(--bank-blue);
+  border-color: var(--bank-line);
+  background: rgba(236, 242, 255, 0.72);
+}
+
+.bank-stat-card strong,
+.bank-relation-summary strong,
+.bank-today-grid strong,
+.bank-donut strong {
+  color: var(--bank-blue);
+}
+
+.bank-stat-card > i,
+.bank-mode-card > i,
+.bank-record-row > i,
+.bank-modal-icon,
+.bank-answer-options button b {
+  color: var(--bank-blue);
+  background:
+    linear-gradient(135deg, rgba(111, 152, 255, 0.18), rgba(230, 194, 241, 0.22)),
+    rgba(255, 255, 255, 0.48);
 }
 
 .bank-mode-card,
@@ -1023,6 +1235,71 @@ input[type="checkbox"]:not([role="switch"]) { accent-color: #5d7edb; }
   border-color: rgba(50, 108, 255, 0.42);
   background: rgba(236, 242, 255, 0.86);
   box-shadow: 0 0 0 3px rgba(99, 133, 230, 0.09);
+}
+
+.bank-modal-backdrop {
+  background: rgba(18, 57, 133, 0.24);
+}
+
+.bank-modal {
+  border-radius: 4px;
+  clip-path: polygon(0 0, calc(100% - 18px) 0, 100% 18px, 100% 100%, 0 100%);
+}
+
+.bank-modal > header {
+  border-bottom-color: var(--bank-line);
+  background:
+    linear-gradient(90deg, rgba(236, 242, 255, 0.86), rgba(255, 255, 255, 0.78)),
+    repeating-linear-gradient(135deg, rgba(60, 94, 210, 0.03) 0 1px, transparent 1px 10px);
+}
+
+.bank-auth-tabs,
+.bank-option-editor,
+.bank-source-panel,
+.bank-practice-progress > i,
+.bank-rate > i,
+.bank-distribution > i,
+.bank-progress-row > i,
+.bank-sidebar-tip i,
+.bank-goal i {
+  background: rgba(236, 242, 255, 0.76);
+}
+
+.bank-source-panel {
+  border-color: var(--bank-line);
+  border-radius: 4px;
+}
+
+.bank-source-panel span,
+.bank-source-panel strong {
+  color: var(--bank-blue-deep);
+}
+
+.bank-practice-progress > i b,
+.bank-rate > i > b,
+.bank-distribution > i > b,
+.bank-progress-row > i b,
+.bank-sidebar-tip b,
+.bank-goal i b {
+  background: linear-gradient(90deg, var(--bank-blue), var(--bank-pink));
+}
+
+.bank-line-chart {
+  border-bottom-color: var(--bank-line);
+  background: repeating-linear-gradient(to bottom, transparent 0 54px, rgba(60, 94, 210, 0.12) 55px);
+}
+
+.bank-line-chart .line {
+  stroke: var(--bank-blue);
+}
+
+.bank-donut {
+  background: conic-gradient(var(--bank-blue) 0 28%, #58c8be 28% 48%, var(--bank-gold) 48% 66%, #e66d80 66% 83%, var(--bank-pink) 83%);
+}
+
+.bank-toast {
+  border-radius: 4px;
+  font-weight: 900;
 }
 
 @media (max-width: 1050px) {

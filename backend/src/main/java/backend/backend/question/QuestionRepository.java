@@ -27,6 +27,10 @@ public interface QuestionRepository extends JpaRepository<Question, Long>, JpaSp
 
     long countByCreatedByAndDeletedFalseAndCategoryIdIsNull(Long createdBy);
 
+    long countByCreatedByAndDeletedFalseAndSourceType(Long createdBy, String sourceType);
+
+    List<Question> findTop5ByCreatedByAndDeletedFalseAndSourceTypeOrderByUpdatedAtDesc(Long createdBy, String sourceType);
+
     List<Question> findAllByCreatedByAndDeletedFalseAndCategoryId(Long createdBy, Long categoryId);
 
     List<Question> findAllByCreatedByAndDeletedFalseAndStatus(Long createdBy, QuestionStatus status);

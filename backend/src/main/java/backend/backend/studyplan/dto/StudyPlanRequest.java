@@ -21,6 +21,14 @@ public class StudyPlanRequest {
     @NotNull(message = "计划日期不能为空")
     private LocalDate planDate;
 
+    @Size(max = 40)
+    private String targetType;
+
+    private Long targetId;
+
+    @Size(max = 180)
+    private String targetTitle;
+
     public String getTitle() {
         return title;
     }
@@ -33,6 +41,18 @@ public class StudyPlanRequest {
         return planDate;
     }
 
+    public String getTargetType() {
+        return targetType;
+    }
+
+    public Long getTargetId() {
+        return targetId;
+    }
+
+    public String getTargetTitle() {
+        return targetTitle;
+    }
+
     public void setTitle(String title) {
         this.title = title;
     }
@@ -43,5 +63,17 @@ public class StudyPlanRequest {
 
     public void setPlanDate(LocalDate planDate) {
         this.planDate = planDate;
+    }
+
+    public void setTargetType(String targetType) {
+        this.targetType = targetType;
+    }
+
+    public void setTargetId(Long targetId) {
+        this.targetId = targetId;
+    }
+
+    public void setTargetTitle(String targetTitle) {
+        this.targetTitle = targetTitle;
     }
 }

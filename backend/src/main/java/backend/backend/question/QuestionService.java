@@ -222,6 +222,11 @@ public class QuestionService {
         question.setKnowledgePoint(normalizeText(request.getKnowledgePoint()));
         question.setStatus(request.getStatus());
         question.setCategoryId(request.getCategoryId());
+        question.setSourceType(normalizeText(request.getSourceType()));
+        question.setSourceResourceId(request.getSourceResourceId());
+        question.setSourceResourceName(truncate(normalizeText(request.getSourceResourceName()), 180));
+        question.setSourcePage(request.getSourcePage());
+        question.setSourceExcerpt(truncate(normalizeText(request.getSourceExcerpt()), 4000));
     }
 
     private void applyCategorySubject(Question question, Category category) {
@@ -289,6 +294,11 @@ public class QuestionService {
                 question.getKnowledgePoint(),
                 question.getStatus(),
                 question.getCategoryId(),
+                question.getSourceType(),
+                question.getSourceResourceId(),
+                question.getSourceResourceName(),
+                question.getSourcePage(),
+                question.getSourceExcerpt(),
                 question.getCreatedBy(),
                 Boolean.TRUE.equals(question.getDeleted()),
                 question.getDeletedAt(),
@@ -365,6 +375,13 @@ public class QuestionService {
             return null;
         }
         return value.trim();
+    }
+
+    private String truncate(String value, int maxLength) {
+        if (value == null || value.length() <= maxLength) {
+            return value;
+        }
+        return value.substring(0, maxLength);
     }
 
     private String summarize(String content) {
