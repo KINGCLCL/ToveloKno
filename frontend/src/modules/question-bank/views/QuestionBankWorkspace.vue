@@ -93,7 +93,7 @@
             <div class="bank-card-head">
               <div><h2>题目列表</h2><span>集中管理题目内容、状态与分类</span></div>
               <div class="bank-segmented">
-                <button v-for="tab in ['全部题目', '已发布', '草稿', '回收站']" :key="tab" type="button" :class="{ active: questionTab === tab }" @click="questionTab = tab">{{ tab }}</button>
+                <button v-for="tab in ['全部题目', '已归档', '草稿', '回收站']" :key="tab" type="button" :class="{ active: questionTab === tab }" @click="questionTab = tab">{{ tab }}</button>
               </div>
             </div>
             <div class="bank-filterbar">
@@ -106,7 +106,7 @@
             <div v-if="selectedQuestionIds.length" class="bank-batchbar">
               <span>已选择 <strong>{{ selectedQuestionIds.length }}</strong> 道题</span>
               <template v-if="questionTab !== '回收站'">
-                <button type="button" @click="handleBatchStatus('PUBLISHED')">批量发布</button>
+                <button type="button" @click="handleBatchStatus('PUBLISHED')">批量归档</button>
                 <button type="button" @click="handleBatchStatus('DRAFT')">转为草稿</button>
                 <button type="button" class="danger" @click="handleBatchDelete">移入回收站</button>
               </template>
@@ -124,7 +124,10 @@
                     <tr v-for="question in questionRows" :key="question.id">
                       <td><input v-model="selectedQuestionIds" type="checkbox" :value="question.id" /></td>
                       <td>
-                        <button class="bank-title-link" type="button" @click="openViewEditor(question)">{{ question.content }}</button>
+                        <button class="bank-title-link" type="button" @click="openViewEditor(question)">
+                          <span>{{ questionText(question.content) }}</span>
+                          <img v-if="questionImageUrl(question.content)" class="bank-question-thumb" :src="assetUrl(questionImageUrl(question.content))" alt="题目图片" />
+                        </button>
                         <small v-if="question.sourceResourceName" class="bank-source-line">
                           <LineIcon name="book-open" /> {{ question.sourceResourceName }}{{ question.sourcePage ? ` · P${question.sourcePage}` : '' }}
                         </small>
@@ -137,6 +140,13 @@
                       <td>
                         <div v-if="questionTab !== '回收站'" class="bank-row-actions">
                           <button type="button" title="编辑" @click="openEditEditor(question)"><LineIcon name="edit" /></button>
+                          <button
+                            type="button"
+                            :title="question.status === 'PUBLISHED' ? '转为草稿' : '归档到练习'"
+                            @click="handleQuestionStatus(question)"
+                          >
+                            <LineIcon :name="question.status === 'PUBLISHED' ? 'x-square' : 'check-square'" />
+                          </button>
                           <button type="button" title="复制" @click="openDuplicateEditor(question)"><LineIcon name="copy" /></button>
                           <button type="button" title="删除" @click="handleDeleteQuestion(question)"><LineIcon name="trash" /></button>
                         </div>
@@ -226,7 +236,7 @@
                   </tbody>
                 </table>
                 <table v-else-if="categoryTab === '知识点'" class="bank-table relation-table">
-                  <thead><tr><th>知识点</th><th>所属科目</th><th>关联题目</th><th>已发布</th><th>发布率</th><th>最近更新</th><th>操作</th></tr></thead>
+                  <thead><tr><th>知识点</th><th>所属科目</th><th>关联题目</th><th>已归档</th><th>归档率</th><th>最近更新</th><th>操作</th></tr></thead>
                   <tbody>
                     <tr v-if="classificationLoading"><td colspan="7" class="bank-empty"><span class="bank-spinner" />正在汇总知识点...</td></tr>
                     <tr v-for="row in filteredKnowledgePointRows" v-else :key="`${row.subject}-${row.name}`">
@@ -266,37 +276,113 @@
         </template>
 
         <template v-else-if="activeNav === 'practice'">
-          <section class="bank-card bank-practice-hero">
-            <div class="bank-card-head"><div><h2>选择练习模式</h2><span>系统将从已发布题目中生成练习</span></div><span class="bank-streak">🔥 连续学习 {{ practiceDashboard.streakDays }} 天</span></div>
-            <div class="bank-practice-controls">
-              <label>练习分类<select v-model="practiceConfig.categoryId"><option :value="null">全部分类</option><option v-for="category in categoryRows" :key="category.id" :value="category.id">{{ categoryOptionLabel(category) }}</option></select></label>
-              <label>题目数量<select v-model.number="practiceConfig.count"><option :value="5">5 题</option><option :value="10">10 题</option><option :value="20">20 题</option><option :value="30">30 题</option></select></label>
-            </div>
-            <div class="bank-mode-grid">
-              <button v-for="mode in practiceModes" :key="mode.id" type="button" :disabled="practiceLoading" :class="['bank-mode-card', mode.accent, { active: activePracticeMode === mode.id }]" @click="startPractice(mode.id)">
-                <i><LineIcon :name="mode.icon" /></i><strong>{{ mode.label }}</strong><span>{{ mode.description }}</span><b>{{ practiceLoading && activePracticeMode === mode.id ? '生成中...' : '开始练习 →' }}</b>
-              </button>
-            </div>
-          </section>
-          <section class="bank-practice-grid">
-            <article class="bank-card bank-records">
-              <div class="bank-card-head compact"><div><h2>最近答题记录</h2><span>每次提交都会实时记录</span></div><button type="button" class="bank-text-btn" @click="loadPracticeDashboard">刷新</button></div>
-              <button v-for="record in practiceDashboard.recentAttempts" :key="`${record.questionId}-${record.answeredAt}`" type="button" class="bank-record-row" @click="openQuestionFromAttempt(record.questionId)">
-                <i><LineIcon :name="record.correct ? 'check-square' : 'x-circle'" /></i><span><strong>{{ record.title }}</strong><small>{{ record.subject || '未分类' }} · {{ record.correct ? '回答正确' : '回答错误' }}</small></span><time>{{ formatShortDateTime(record.answeredAt) }}</time><LineIcon name="chevron-right" />
-              </button>
-              <p v-if="!practiceDashboard.recentAttempts.length" class="bank-panel-empty">完成一次练习后，答题记录会显示在这里</p>
-            </article>
-            <article class="bank-card bank-today">
-              <div class="bank-card-head compact"><div><h2>今日学习</h2><span>目标 {{ practiceDashboard.today.goal }} 题</span></div></div>
-              <div class="bank-today-grid"><div><span>今日练习</span><strong>{{ practiceDashboard.today.practiceCount }}<small>题</small></strong></div><div><span>错题重练</span><strong>{{ practiceDashboard.today.wrongReviewCount }}<small>题</small></strong></div><div><span>待复习错题</span><strong>{{ practiceDashboard.today.activeWrongCount }}<small>题</small></strong></div><div><span>预计时长</span><strong>{{ practiceDashboard.today.estimatedMinutes }}<small>分钟</small></strong></div></div>
-              <div class="bank-goal"><span>每日目标 <b>{{ practiceDashboard.today.progress }}%</b></span><i><b :style="{ width: `${practiceDashboard.today.progress}%` }" /></i></div>
-            </article>
-            <article class="bank-card bank-recommend">
-              <div class="bank-card-head compact"><div><h2>薄弱知识点推荐</h2><span>基于真实答题正确率</span></div></div>
-              <div v-for="point in practiceDashboard.weakPoints" :key="point.name" class="bank-progress-row"><span>{{ point.name }}</span><i><b :style="{ width: `${point.accuracy}%` }" /></i><strong>{{ point.accuracy }}%</strong></div>
-              <p v-if="!practiceDashboard.weakPoints.length" class="bank-panel-empty compact">积累更多答题记录后生成推荐</p>
-              <button type="button" class="bank-btn primary wide" :disabled="!practiceDashboard.weakPoints.length" @click="startPractice('weak')">生成专项练习</button>
-            </article>
+          <section class="bank-practice-shell">
+            <section class="bank-card bank-practice-command">
+              <div class="bank-card-head compact">
+                <div><h2>做题组卷</h2><span>题目从已归档内容中抽取，错题会自动流入错题本</span></div>
+                <span class="bank-streak">连续 {{ practiceDashboard.streakDays }} 天</span>
+              </div>
+              <div class="bank-practice-controlbar">
+                <label>练习方式<select v-model="practiceConfig.mode"><option v-for="mode in practiceModes" :key="mode.id" :value="mode.id">{{ mode.label }}</option></select></label>
+                <label>练习分类<select v-model="practiceConfig.categoryId"><option :value="null">全部分类</option><option v-for="category in categoryRows" :key="category.id" :value="category.id">{{ categoryOptionLabel(category) }}</option></select></label>
+                <label>题目数量<select v-model.number="practiceConfig.count"><option :value="5">5 题</option><option :value="10">10 题</option><option :value="20">20 题</option><option :value="30">30 题</option></select></label>
+                <button class="bank-btn primary" type="button" :disabled="practiceLoading" @click="startPractice(practiceConfig.mode)">
+                  <span v-if="practiceLoading" class="bank-spinner small" />{{ practiceLoading ? '正在组卷...' : '开始做题' }}
+                </button>
+                <button class="bank-btn" type="button" @click="emit('open-module', 'wrong')"><LineIcon name="notebook" />错题本</button>
+              </div>
+            </section>
+
+            <section class="bank-practice-focus">
+              <article class="bank-card bank-practice-player">
+                <div class="bank-card-head">
+                  <div><h2>{{ currentPracticeQuestion ? practiceModeLabel : '自主判题练习台' }}</h2><span>{{ currentPracticeQuestion ? `第 ${practiceIndex + 1} / ${practiceQuestions.length} 题` : '先生成练习卷，再开始作答' }}</span></div>
+                  <button v-if="practiceQuestions.length" type="button" class="bank-btn compact" @click="finishPractice">结束本轮</button>
+                </div>
+                <div v-if="practiceQuestions.length" class="bank-practice-progress inline"><i><b :style="{ width: `${practiceProgress}%` }" /></i><span>{{ practiceProgress }}%</span></div>
+                <form v-if="currentPracticeQuestion" class="bank-self-practice" @submit.prevent="revealPracticeAnswer">
+                  <div class="bank-practice-meta"><span>{{ questionTypeLabel(currentPracticeQuestion.questionType) }}</span><span>{{ currentPracticeQuestion.subject || '未分类' }}</span><span>{{ difficultyStars(currentPracticeQuestion.difficulty) }}</span></div>
+                  <section class="bank-practice-prompt">
+                    <h3>{{ questionText(currentPracticeQuestion.content) }}</h3>
+                    <img v-if="questionImageUrl(currentPracticeQuestion.content)" :src="assetUrl(questionImageUrl(currentPracticeQuestion.content))" alt="题目图片" />
+                  </section>
+                  <div v-if="currentPracticeQuestion.options?.length" class="bank-answer-options bank-choice-sheet">
+                    <button
+                      v-for="(option, index) in currentPracticeQuestion.options"
+                      :key="`${currentPracticeQuestion.id}-${index}`"
+                      type="button"
+                      :disabled="practiceAnswerRevealed"
+                      :class="{ selected: isPracticeOptionSelected(index) }"
+                      @click="togglePracticeOption(index)"
+                    >
+                      <b>{{ String.fromCharCode(65 + index) }}</b><span>{{ option }}</span>
+                    </button>
+                  </div>
+                  <label class="bank-text-answer">
+                    <span>{{ currentPracticeQuestion.options?.length ? '作答备注' : '你的答案' }}</span>
+                    <textarea
+                      v-if="currentPracticeQuestion.options?.length"
+                      v-model.trim="practiceNote"
+                      :disabled="practiceAnswerRevealed"
+                      rows="3"
+                      maxlength="1000"
+                      placeholder="可选：记录你的思路"
+                    />
+                    <textarea
+                      v-else
+                      v-model.trim="practiceAnswer"
+                      :disabled="practiceAnswerRevealed"
+                      rows="4"
+                      maxlength="1000"
+                      placeholder="可以写答案，也可以先在心里作答后直接查看答案"
+                    />
+                  </label>
+                  <section v-if="practiceAnswerRevealed" class="bank-answer-result reveal" :class="{ correct: practiceResult?.correct, wrong: practiceResult && !practiceResult.correct }">
+                    <h4>官方答案</h4>
+                    <p><strong>你的作答：</strong>{{ practiceDisplayAnswer }}</p>
+                    <p><strong>正确答案：</strong>{{ currentPracticeQuestion.correctAnswer || '暂无答案' }}</p>
+                    <p><strong>答案解析：</strong>{{ currentPracticeQuestion.analysis || '暂无解析' }}</p>
+                    <small v-if="!practiceResult">看完答案后，请按真实情况自评；点“我答错了”会进入错题本。</small>
+                    <small v-else>{{ practiceResult.correct ? '已记录为正确' : '已记录为错误，并放入错题本' }}</small>
+                  </section>
+                  <p v-if="practiceError" class="bank-form-error">{{ practiceError }}</p>
+                  <footer class="bank-practice-actions">
+                    <button v-if="!practiceAnswerRevealed" class="bank-btn primary" type="submit"><LineIcon name="eye" />查看答案</button>
+                    <template v-else-if="!practiceResult">
+                      <button class="bank-btn judge-correct" type="button" :disabled="answerSubmitting" @click="judgeCurrentAnswer(true)"><LineIcon name="check-square" />我答对了</button>
+                      <button class="bank-btn judge-wrong" type="button" :disabled="answerSubmitting" @click="judgeCurrentAnswer(false)"><LineIcon name="x-circle" />我答错了</button>
+                    </template>
+                    <button v-else class="bank-btn primary" type="button" @click="nextPracticeQuestion">{{ practiceIndex + 1 >= practiceQuestions.length ? '完成练习' : '下一题' }}</button>
+                  </footer>
+                </form>
+                <section v-else class="bank-practice-empty">
+                  <LineIcon name="target" />
+                  <strong>还没有练习卷</strong>
+                  <span>先归档题目，然后点击“开始做题”。作答后自己判对错，判错的题会进入错题本。</span>
+                </section>
+              </article>
+
+              <aside class="bank-card bank-practice-ledger">
+                <div class="bank-card-head compact"><div><h2>本轮状态</h2><span>按自评结果记录</span></div><button type="button" class="bank-text-btn" @click="loadPracticeDashboard">刷新</button></div>
+                <div class="bank-session-grid">
+                  <div><span>已判</span><strong>{{ practiceSession.judged }}<small>题</small></strong></div>
+                  <div><span>答对</span><strong>{{ practiceSession.correct }}<small>题</small></strong></div>
+                  <div><span>答错</span><strong>{{ practiceSession.wrong }}<small>题</small></strong></div>
+                  <div><span>正确率</span><strong>{{ practiceSessionAccuracy }}<small>%</small></strong></div>
+                </div>
+                <section class="bank-practice-side-metrics">
+                  <div><span>今日已做</span><strong>{{ practiceDashboard.today.practiceCount }} 题</strong></div>
+                  <div><span>待复盘错题</span><strong>{{ practiceDashboard.today.activeWrongCount }} 题</strong></div>
+                  <div><span>归档题目</span><strong>{{ questionStatsData.published }} 题</strong></div>
+                </section>
+                <div class="bank-ledger-list">
+                  <button v-for="record in practiceDashboard.recentAttempts" :key="`${record.questionId}-${record.answeredAt}`" type="button" class="bank-record-row" @click="openQuestionFromAttempt(record.questionId)">
+                    <i><LineIcon :name="record.correct ? 'check-square' : 'x-circle'" /></i><span><strong>{{ record.title }}</strong><small>{{ record.subject || '未分类' }} · {{ record.correct ? '正确' : '错误' }}</small></span><time>{{ formatShortDateTime(record.answeredAt) }}</time><LineIcon name="chevron-right" />
+                  </button>
+                  <p v-if="!practiceDashboard.recentAttempts.length" class="bank-panel-empty">完成一次练习后，记录会显示在这里</p>
+                </div>
+              </aside>
+            </section>
           </section>
         </template>
 
@@ -329,8 +415,8 @@
               <p v-if="!analyticsData.weakPoints.length" class="bank-panel-empty compact">暂无知识点答题数据</p>
             </article>
             <article class="bank-card bank-rank-card">
-              <div class="bank-card-head compact"><div><h2>薄弱知识点排行</h2><span>建议优先复习</span></div></div>
-              <table class="bank-mini-table"><thead><tr><th>知识点</th><th>错题</th><th>正确率</th><th></th></tr></thead><tbody><tr v-for="row in analyticsData.weakPoints" :key="row.name"><td>{{ row.name }}</td><td>{{ row.wrongCount }}</td><td>{{ row.accuracy }}%</td><td><button type="button" @click="startPractice('weak', row.name)">练习</button></td></tr><tr v-if="!analyticsData.weakPoints.length"><td colspan="4">暂无薄弱项</td></tr></tbody></table>
+              <div class="bank-card-head compact"><div><h2>薄弱知识点排行</h2><span>建议到错题库集中复盘</span></div></div>
+              <table class="bank-mini-table"><thead><tr><th>知识点</th><th>错题</th><th>正确率</th><th></th></tr></thead><tbody><tr v-for="row in analyticsData.weakPoints" :key="row.name"><td>{{ row.name }}</td><td>{{ row.wrongCount }}</td><td>{{ row.accuracy }}%</td><td><button type="button" @click="emit('open-module', 'wrong')">复盘</button></td></tr><tr v-if="!analyticsData.weakPoints.length"><td colspan="4">暂无薄弱项</td></tr></tbody></table>
             </article>
           </section>
         </template>
@@ -343,7 +429,7 @@
               <div class="bank-toggle-list">
                 <label><span><strong>允许成员新增题目</strong><small>编辑员可创建与修改题目</small></span><input v-model="settings.memberEdit" type="checkbox" role="switch" /></label>
                 <label><span><strong>允许成员批量导出</strong><small>开放题目数据导出权限</small></span><input v-model="settings.memberExport" type="checkbox" role="switch" /></label>
-                <label><span><strong>题目审核后发布</strong><small>新增题目默认进入待审核状态</small></span><input v-model="settings.reviewRequired" type="checkbox" role="switch" /></label>
+                <label><span><strong>题目归档审核</strong><small>开启后新增题目先保留草稿</small></span><input v-model="settings.reviewRequired" type="checkbox" role="switch" /></label>
               </div>
             </article>
             <article class="bank-card bank-settings-card">
@@ -391,7 +477,14 @@
             <label><span>科目</span><input v-model.trim="questionForm.subject" :disabled="editorMode === 'view'" maxlength="80" placeholder="选择分类后自动填充" /></label>
             <label><span>知识点</span><input v-model.trim="questionForm.knowledgePoint" :disabled="editorMode === 'view'" maxlength="80" placeholder="例如：事务管理" /></label>
           </div>
-          <label><span>题目内容 *</span><textarea v-model.trim="questionForm.content" :disabled="editorMode === 'view'" required maxlength="10000" rows="4" placeholder="请输入题干" /></label>
+          <label>
+            <span>题目内容 *</span>
+            <div v-if="editorMode === 'view' && questionImageUrl(questionForm.content)" class="bank-question-image-view">
+              <p>{{ questionText(questionForm.content) }}</p>
+              <img :src="assetUrl(questionImageUrl(questionForm.content))" alt="题目图片" />
+            </div>
+            <textarea v-else v-model.trim="questionForm.content" :disabled="editorMode === 'view'" required maxlength="10000" rows="4" placeholder="请输入题干" />
+          </label>
 
           <div v-if="isChoiceQuestion" class="bank-option-editor">
             <div class="bank-option-head"><span>选项（至少两个）</span><button v-if="editorMode !== 'view'" type="button" @click="addOption">＋ 添加选项</button></div>
@@ -404,7 +497,7 @@
 
           <div class="bank-form-grid modal-grid">
             <label><span>正确答案 *</span><input v-model.trim="questionForm.correctAnswer" :disabled="editorMode === 'view'" required maxlength="1000" placeholder="例如：A；多选可填写 A,B" /></label>
-            <label><span>发布状态 *</span><select v-model="questionForm.status" :disabled="editorMode === 'view'" required><option value="DRAFT">草稿</option><option value="PUBLISHED">已发布</option></select></label>
+            <label><span>题目状态 *</span><select v-model="questionForm.status" :disabled="editorMode === 'view'" required><option value="DRAFT">草稿</option><option value="PUBLISHED">已归档</option></select></label>
           </div>
           <label><span>答案解析</span><textarea v-model.trim="questionForm.analysis" :disabled="editorMode === 'view'" maxlength="10000" rows="3" placeholder="请输入解题思路或知识点说明" /></label>
           <section v-if="questionForm.sourceResourceName || questionForm.sourceExcerpt" class="bank-source-panel">
@@ -419,45 +512,6 @@
             <button class="bank-btn" type="button" @click="closeEditor">{{ editorMode === 'view' ? '关闭' : '取消' }}</button>
             <button v-if="editorMode === 'view'" class="bank-btn primary" type="button" @click="editorMode = 'edit'"><LineIcon name="edit" />编辑题目</button>
             <button v-else class="bank-btn primary" type="submit" :disabled="questionSaving"><span v-if="questionSaving" class="bank-spinner small" />{{ questionSaving ? '保存中...' : '保存题目' }}</button>
-          </footer>
-        </form>
-      </section>
-    </div>
-
-    <div v-if="practiceModalOpen" class="bank-modal-backdrop" @click.self="closePractice">
-      <section class="bank-modal bank-practice-modal" role="dialog" aria-modal="true" aria-label="在线练习">
-        <header>
-          <div><span class="bank-modal-icon"><LineIcon name="target" /></span><div><h2>在线练习</h2><p>{{ practiceModeLabel }} · 第 {{ practiceIndex + 1 }} / {{ practiceQuestions.length }} 题</p></div></div>
-          <button type="button" aria-label="关闭" @click="closePractice">×</button>
-        </header>
-        <div class="bank-practice-progress"><i><b :style="{ width: `${practiceProgress}%` }" /></i><span>{{ practiceProgress }}%</span></div>
-        <form v-if="currentPracticeQuestion" class="bank-practice-question" @submit.prevent="submitCurrentAnswer">
-          <div class="bank-practice-meta"><span>{{ questionTypeLabel(currentPracticeQuestion.questionType) }}</span><span>{{ currentPracticeQuestion.subject || '未分类' }}</span><span>{{ difficultyStars(currentPracticeQuestion.difficulty) }}</span></div>
-          <h3>{{ currentPracticeQuestion.content }}</h3>
-          <div v-if="currentPracticeQuestion.options?.length" class="bank-answer-options">
-            <button
-              v-for="(option, index) in currentPracticeQuestion.options"
-              :key="`${currentPracticeQuestion.id}-${index}`"
-              type="button"
-              :disabled="Boolean(practiceResult)"
-              :class="{ selected: isPracticeOptionSelected(index) }"
-              @click="togglePracticeOption(index)"
-            >
-              <b>{{ String.fromCharCode(65 + index) }}</b><span>{{ option }}</span>
-            </button>
-          </div>
-          <label v-else class="bank-text-answer"><span>你的答案</span><textarea v-model.trim="practiceAnswer" :disabled="Boolean(practiceResult)" rows="4" maxlength="1000" placeholder="请输入答案" /></label>
-          <section v-if="practiceResult" class="bank-answer-result" :class="{ correct: practiceResult.correct, wrong: !practiceResult.correct }">
-            <h4>{{ practiceResult.correct ? '回答正确' : '回答错误' }}</h4>
-            <p v-if="!practiceResult.correct"><strong>正确答案：</strong>{{ practiceResult.correctAnswer }}</p>
-            <p><strong>答案解析：</strong>{{ practiceResult.analysis || '暂无解析' }}</p>
-            <small v-if="practiceResult.mastered">这道错题已标记为掌握</small>
-          </section>
-          <p v-if="practiceError" class="bank-form-error">{{ practiceError }}</p>
-          <footer>
-            <button class="bank-btn" type="button" @click="closePractice">结束练习</button>
-            <button v-if="!practiceResult" class="bank-btn primary" type="submit" :disabled="answerSubmitting || !practiceAnswer"><span v-if="answerSubmitting" class="bank-spinner small" />{{ answerSubmitting ? '判题中...' : '提交答案' }}</button>
-            <button v-else class="bank-btn primary" type="button" @click="nextPracticeQuestion">{{ practiceIndex + 1 >= practiceQuestions.length ? '完成练习' : '下一题' }}</button>
           </footer>
         </form>
       </section>
@@ -553,7 +607,7 @@ import {
   updateQuestionBankSettings,
 } from '../questionBankApi'
 
-const emit = defineEmits(['back-home'])
+const emit = defineEmits(['back-home', 'open-module'])
 const initialNav = window.location.hash.slice(1)
 const activeNav = ref(navigationItems.some((item) => item.id === initialNav) ? initialNav : 'questions')
 const sidebarCollapsed = ref(false)
@@ -599,10 +653,11 @@ const knowledgePointRows = ref([])
 const tagRows = ref([])
 const difficultyRows = ref([])
 const practiceLoading = ref(false)
-const practiceModalOpen = ref(false)
 const practiceQuestions = ref([])
 const practiceIndex = ref(0)
 const practiceAnswer = ref('')
+const practiceNote = ref('')
+const practiceAnswerRevealed = ref(false)
 const practiceResult = ref(null)
 const practiceError = ref('')
 const answerSubmitting = ref(false)
@@ -620,7 +675,8 @@ let searchTimer
 const filters = reactive({ subject: '', categoryId: null, type: '', difficulty: '' })
 const pagination = reactive({ page: 1, size: 10, total: 0, totalPages: 1 })
 const authForm = reactive({ username: '', password: '', email: '' })
-const practiceConfig = reactive({ categoryId: null, count: 10 })
+const practiceConfig = reactive({ mode: 'random', categoryId: null, count: 10 })
+const practiceSession = reactive({ judged: 0, correct: 0, wrong: 0 })
 const practiceDashboard = reactive({
   streakDays: 0,
   recentAttempts: [],
@@ -689,7 +745,7 @@ const settings = reactive({
 const pageContent = {
   questions: { eyebrow: 'QUESTION MANAGEMENT', title: '题目管理', description: '高效整理、筛选与维护你的全部题目' },
   categories: { eyebrow: 'CATEGORY RELATION', title: '分类关系', description: '构建清晰的科目、知识点和标签体系' },
-  practice: { eyebrow: 'PRACTICE & REVIEW', title: '练习与复习', description: '智能选择练习方式，稳步提升知识掌握度' },
+  practice: { eyebrow: 'LIVE PRACTICE', title: '在线做题', description: '从归档题目进入练习，查看答案后自主判定对错' },
   analytics: { eyebrow: 'LEARNING ANALYTICS', title: '数据统计', description: '从学习数据中发现进步，也看见下一步方向' },
   settings: { eyebrow: 'BANK SETTINGS', title: '题库设置', description: '配置题库信息、共享权限与默认规则' },
 }
@@ -701,7 +757,7 @@ const displayName = computed(() => currentNickname.value || currentUsername.valu
 const userInitial = computed(() => displayName.value.slice(0, 1).toUpperCase() || '访')
 const questionStatCards = computed(() => [
   { label: '题目总数', value: questionStatsData.total.toLocaleString(), unit: '题', note: '当前题库有效题目', icon: 'book-open', tone: 'blue' },
-  { label: '已发布', value: questionStatsData.published.toLocaleString(), unit: '题', note: ratioNote(questionStatsData.published), icon: 'check-square', tone: 'green' },
+  { label: '已归档', value: questionStatsData.published.toLocaleString(), unit: '题', note: ratioNote(questionStatsData.published), icon: 'check-square', tone: 'green' },
   { label: '草稿数', value: questionStatsData.draft.toLocaleString(), unit: '题', note: ratioNote(questionStatsData.draft), icon: 'edit', tone: 'orange' },
   { label: '回收站', value: questionStatsData.recycleBin.toLocaleString(), unit: '题', note: '支持恢复或永久删除', icon: 'trash', tone: 'purple' },
 ])
@@ -711,11 +767,20 @@ const practiceProgress = computed(() => {
   return Math.round(((practiceIndex.value + (practiceResult.value ? 1 : 0)) / practiceQuestions.value.length) * 100)
 })
 const practiceModeLabel = computed(() => practiceModes.find((mode) => mode.id === activePracticeMode.value)?.label || '专项练习')
+const practiceSessionAccuracy = computed(() => {
+  if (!practiceSession.judged) return 0
+  return Math.round((practiceSession.correct * 100) / practiceSession.judged)
+})
+const practiceDisplayAnswer = computed(() => {
+  if (practiceAnswer.value) return practiceAnswer.value
+  if (practiceNote.value) return practiceNote.value
+  return '未填写'
+})
 const analyticsStatCards = computed(() => [
   { label: '题目总数', value: analyticsData.summary.totalQuestions.toLocaleString(), unit: '题', note: '当前有效题目', icon: 'book-open' },
   { label: '已练题目', value: analyticsData.summary.answeredQuestions.toLocaleString(), unit: '题', note: '去重统计', icon: 'check-square' },
   { label: '正确率', value: analyticsData.summary.accuracy, unit: '%', note: '全部答题记录', icon: 'target' },
-  { label: '待复习错题', value: analyticsData.summary.activeWrongCount, unit: '题', note: '答对可标记掌握', icon: 'x-circle' },
+  { label: '错题库', value: analyticsData.summary.activeWrongCount, unit: '题', note: '到错题本集中复盘', icon: 'x-circle' },
   { label: '预计学习', value: analyticsData.summary.estimatedMinutes, unit: '分钟', note: '按每题 2 分钟估算', icon: 'clock' },
 ])
 const trendLinePoints = computed(() => analyticsData.trend.map((point, index) => {
@@ -985,7 +1050,20 @@ function questionTypeLabel(type) {
 }
 
 function questionStatusLabel(status) {
-  return status === 'PUBLISHED' ? '已发布' : '草稿'
+  return status === 'PUBLISHED' ? '已归档' : '草稿'
+}
+
+function questionImageUrl(content = '') {
+  const match = String(content).match(/!\[[^\]]*]\(([^)]+)\)/)
+  return match?.[1] || ''
+}
+
+function questionText(content = '') {
+  return String(content).replace(/!\[[^\]]*]\([^)]+\)/g, '').trim() || '图片题'
+}
+
+function assetUrl(url) {
+  return resolveAssetUrl(url)
 }
 
 function formatDate(value) {
@@ -1094,6 +1172,14 @@ function handleApiFailure(error, fallback) {
     knowledgePointRows.value = []
     tagRows.value = []
     difficultyRows.value = []
+    practiceQuestions.value = []
+    practiceIndex.value = 0
+    practiceAnswer.value = ''
+    practiceNote.value = ''
+    practiceAnswerRevealed.value = false
+    practiceResult.value = null
+    practiceError.value = ''
+    resetPracticeSession()
     expandedCategoryIds.value = new Set()
     classificationTreeInitialized.value = false
     filters.categoryId = null
@@ -1162,7 +1248,6 @@ function handleLogout() {
   profileOpen.value = false
   questionRows.value = []
   practiceQuestions.value = []
-  practiceModalOpen.value = false
   Object.assign(practiceDashboard, {
     streakDays: 0,
     recentAttempts: [],
@@ -1221,7 +1306,7 @@ async function loadQuestions() {
   if (!authenticated.value || activeNav.value !== 'questions') return
   questionsLoading.value = true
   try {
-    const statusMap = { 已发布: 'PUBLISHED', 草稿: 'DRAFT' }
+    const statusMap = { 已归档: 'PUBLISHED', 已发布: 'PUBLISHED', 草稿: 'DRAFT' }
     const response = await fetchQuestions({
       page: pagination.page,
       size: pagination.size,
@@ -1307,8 +1392,11 @@ async function startPractice(mode, knowledgePoint = null) {
     practiceQuestions.value = response.data?.data || []
     practiceIndex.value = 0
     practiceAnswer.value = ''
+    practiceNote.value = ''
+    practiceAnswerRevealed.value = false
     practiceResult.value = null
-    practiceModalOpen.value = true
+    resetPracticeSession()
+    notify(`已生成 ${practiceQuestions.value.length} 道题，开始做题吧`)
   } catch (error) {
     notify(readApiError(error, '练习生成失败'))
   } finally {
@@ -1328,6 +1416,7 @@ function isPracticeOptionSelected(index) {
 }
 
 function togglePracticeOption(index) {
+  if (practiceAnswerRevealed.value) return
   const value = practiceOptionValue(index)
   if (currentPracticeQuestion.value.questionType !== 'MULTIPLE_CHOICE') {
     practiceAnswer.value = value
@@ -1339,20 +1428,30 @@ function togglePracticeOption(index) {
   practiceAnswer.value = [...selected].sort().join(',')
 }
 
-async function submitCurrentAnswer() {
-  if (!practiceAnswer.value || !currentPracticeQuestion.value) return
+function revealPracticeAnswer() {
+  if (!currentPracticeQuestion.value) return
+  practiceAnswerRevealed.value = true
+  practiceError.value = ''
+}
+
+async function judgeCurrentAnswer(selfCorrect) {
+  if (!currentPracticeQuestion.value || !practiceAnswerRevealed.value || practiceResult.value) return
   answerSubmitting.value = true
   practiceError.value = ''
   try {
     const response = await submitPracticeAnswer({
       questionId: currentPracticeQuestion.value.id,
-      userAnswer: practiceAnswer.value,
+      userAnswer: practiceDisplayAnswer.value,
       mode: activePracticeMode.value,
+      selfCorrect,
     })
     practiceResult.value = response.data?.data
+    practiceSession.judged += 1
+    if (selfCorrect) practiceSession.correct += 1
+    else practiceSession.wrong += 1
     await Promise.all([loadPracticeDashboard(), loadAnalytics()])
   } catch (error) {
-    practiceError.value = readApiError(error, '提交答案失败')
+    practiceError.value = readApiError(error, '记录自评失败')
   } finally {
     answerSubmitting.value = false
   }
@@ -1360,19 +1459,31 @@ async function submitCurrentAnswer() {
 
 function nextPracticeQuestion() {
   if (practiceIndex.value + 1 >= practiceQuestions.value.length) {
-    practiceModalOpen.value = false
+    finishPractice()
     notify('本次练习已完成')
     return
   }
   practiceIndex.value += 1
   practiceAnswer.value = ''
+  practiceNote.value = ''
+  practiceAnswerRevealed.value = false
   practiceResult.value = null
   practiceError.value = ''
 }
 
-function closePractice() {
+function finishPractice() {
   if (answerSubmitting.value) return
-  practiceModalOpen.value = false
+  practiceQuestions.value = []
+  practiceIndex.value = 0
+  practiceAnswer.value = ''
+  practiceNote.value = ''
+  practiceAnswerRevealed.value = false
+  practiceResult.value = null
+  practiceError.value = ''
+}
+
+function resetPracticeSession() {
+  Object.assign(practiceSession, { judged: 0, correct: 0, wrong: 0 })
 }
 
 async function openQuestionFromAttempt(questionId) {
@@ -1416,7 +1527,7 @@ function exportAnalytics() {
     ['题目总数', analyticsData.summary.totalQuestions],
     ['已练题目', analyticsData.summary.answeredQuestions],
     ['正确率', `${analyticsData.summary.accuracy}%`],
-    ['待复习错题', analyticsData.summary.activeWrongCount],
+    ['错题库未掌握', analyticsData.summary.activeWrongCount],
     ['预计学习分钟', analyticsData.summary.estimatedMinutes],
     [],
     ['日期', '答题数', '正确率'],
@@ -1756,10 +1867,21 @@ async function handleBatchStatus(status) {
   try {
     await batchUpdateQuestionStatus(selectedQuestionIds.value, status)
     selectedQuestionIds.value = []
-    notify(status === 'PUBLISHED' ? '题目已批量发布' : '题目已转为草稿')
+    notify(status === 'PUBLISHED' ? '题目已批量归档' : '题目已转为草稿')
     await refreshQuestionData()
   } catch (error) {
     handleApiFailure(error, '批量修改状态失败')
+  }
+}
+
+async function handleQuestionStatus(question) {
+  const nextStatus = question.status === 'PUBLISHED' ? 'DRAFT' : 'PUBLISHED'
+  try {
+    await batchUpdateQuestionStatus([question.id], nextStatus)
+    notify(nextStatus === 'PUBLISHED' ? '题目已归档，可进入练习' : '题目已转为草稿')
+    await refreshQuestionData()
+  } catch (error) {
+    handleApiFailure(error, '题目状态修改失败')
   }
 }
 
@@ -1812,7 +1934,7 @@ function normalizeImportedQuestion(item) {
     填空题: 'FILL_BLANK',
     简答题: 'SHORT_ANSWER',
   }
-  const statusMap = { 已发布: 'PUBLISHED', 草稿: 'DRAFT' }
+  const statusMap = { 已归档: 'PUBLISHED', 已发布: 'PUBLISHED', 草稿: 'DRAFT' }
   return {
     content: item.content,
     questionType: typeMap[item.questionType || item.type] || item.questionType || item.type,

@@ -246,11 +246,15 @@
     </section>
 
     <section v-else-if="activePanel === 'practice'" class="question-bank-screen">
-      <QuestionBankWorkspace @back-home="switchPanel('home')" />
+      <QuestionBankWorkspace @back-home="switchPanel('home')" @open-module="switchPanel" />
     </section>
 
     <section v-else-if="activePanel === 'resources'" class="full-module-screen">
       <LearningResourceWorkspace @back-home="switchPanel('home')" />
+    </section>
+
+    <section v-else-if="activePanel === 'ai'" class="full-module-screen">
+      <AiAssistantWorkspace @back-home="switchPanel('home')" />
     </section>
 
     <section v-else-if="activePanel === 'wrong'" class="full-module-screen">
@@ -307,7 +311,17 @@
 
       <section class="content-frame" :class="{ 'dashboard-frame': activePanel === 'home' }">
         <Transition name="panel-shift" mode="out-in">
-        <section v-if="activePanel === 'home'" :key="'home'" class="recommend-home">
+        <section
+          v-if="activePanel === 'home'"
+          :key="'home'"
+          class="recommend-home"
+          @pointermove="handleHomePointerMove"
+          @pointerdown="setHomePointerActive(true, $event)"
+          @pointerup="setHomePointerActive(false)"
+          @pointercancel="setHomePointerActive(false)"
+          @pointerleave="setHomePointerActive(false)"
+        >
+          <canvas ref="homeParticleCanvas" class="home-particle-canvas" aria-hidden="true"></canvas>
           <section class="recommend-carousel" aria-label="推荐画幅">
             <article
               class="recommend-slide"
@@ -382,6 +396,57 @@
                 </article>
               </section>
             </div>
+          </section>
+
+          <section class="home-lineart-stage" aria-label="线稿渐变展示">
+            <div class="lineart-petals" aria-hidden="true">
+              <i v-for="petal in 24" :key="petal"></i>
+            </div>
+            <img class="lineart-illustration lineart-hero-image" :src="homeStudyLineart" alt="淡色人物、笔记、铅笔和花瓣线稿插画" />
+            <span class="lineart-accent lineart-accent-book" aria-hidden="true">
+              <img :src="homeAccentBook" alt="" />
+            </span>
+            <span class="lineart-accent lineart-accent-flower" aria-hidden="true">
+              <img :src="homeAccentFlower" alt="" />
+            </span>
+            <span class="lineart-accent lineart-accent-pencil" aria-hidden="true">
+              <img :src="homeAccentPencilNote" alt="" />
+            </span>
+            <div class="lineart-title-layer">
+              <span class="ark-kicker">STUDY FLOW</span>
+              <h3>把资料读进去，把题目留下来。</h3>
+              <p>PDF、Word、截图和笔记先进资料区，能识别出的题目直接留进题库。</p>
+            </div>
+          </section>
+
+          <section class="home-story-panel" aria-label="ToveloKno 学习流说明">
+            <article class="home-story-scene story-scene-split story-scene-copy-left">
+              <img class="story-scene-bg" :src="homeBgDocs" alt="" aria-hidden="true" />
+              <img class="story-scene-doodle story-doodle-book" :src="homeAccentBook" alt="" aria-hidden="true" />
+              <div class="story-scene-copy">
+                <span>01 / RESOURCE</span>
+                <h3>资料不是贴图，是能继续使用的内容。</h3>
+                <p>文档、扫描页、手写笔记都可以保留原样，后面再抽题、复盘、归档。</p>
+              </div>
+            </article>
+            <article class="home-story-scene story-scene-split story-scene-copy-right">
+              <img class="story-scene-bg" :src="homeBgPractice" alt="" aria-hidden="true" />
+              <img class="story-scene-doodle story-doodle-pencil" :src="homeAccentPencilNote" alt="" aria-hidden="true" />
+              <div class="story-scene-copy">
+                <span>02 / PRACTICE</span>
+                <h3>做题时自己判定，对错立刻有去处。</h3>
+                <p>答错的题自动进错题本，下一轮复习不用再翻资料找。</p>
+              </div>
+            </article>
+            <article class="home-story-scene story-scene-split story-scene-copy-left">
+              <img class="story-scene-bg" :src="homeBgPlan" alt="" aria-hidden="true" />
+              <img class="story-scene-doodle story-doodle-flower story-doodle-soft" :src="homeAccentFlower" alt="" aria-hidden="true" />
+              <div class="story-scene-copy">
+                <span>03 / PLAN</span>
+                <h3>计划接上之后，复习就不会只靠想起来。</h3>
+                <p>资料、题库和错题串成当天能完成的小任务，轻一点往前走。</p>
+              </div>
+            </article>
           </section>
         </section>
 
@@ -650,9 +715,17 @@ import {
 } from './api'
 import QuestionBankWorkspace from './modules/question-bank/views/QuestionBankWorkspace.vue'
 import './modules/question-bank/styles/question-bank-workspace.css'
+import AiAssistantWorkspace from './modules/ai-assistant/AiAssistantWorkspace.vue'
 import LearningResourceWorkspace from './modules/learning-resource/LearningResourceWorkspace.vue'
 import StudyPlanWorkspace from './modules/study-plan/StudyPlanWorkspace.vue'
 import WrongQuestionWorkspace from './modules/wrong-question/WrongQuestionWorkspace.vue'
+import homeAccentBook from './assets/home-accent-book.png'
+import homeAccentFlower from './assets/home-accent-flower.png'
+import homeAccentPencilNote from './assets/home-accent-pencil-note.png'
+import homeBgDocs from './assets/home-bg-docs.png'
+import homeBgPlan from './assets/home-bg-plan.png'
+import homeBgPractice from './assets/home-bg-practice.png'
+import homeStudyLineart from './assets/home-study-lineart.jpg'
 
 const nowTime = () =>
   new Intl.DateTimeFormat('zh-CN', {
@@ -763,6 +836,7 @@ const dataUrlToFile = (dataUrl, filename = 'home-banner.jpg') => {
 export default {
   name: 'App',
   components: {
+    AiAssistantWorkspace,
     LearningResourceWorkspace,
     QuestionBankWorkspace,
     StudyPlanWorkspace,
@@ -774,6 +848,18 @@ export default {
       isLoggedIn: Boolean(getAuthToken()),
       message: { type: '', text: '' },
       authMode: 'login',
+      homeStudyLineart,
+      homeAccentBook,
+      homeAccentFlower,
+      homeAccentPencilNote,
+      homeBgDocs,
+      homeBgPractice,
+      homeBgPlan,
+      homePointerActive: false,
+      lastHomePetalAt: 0,
+      homeParticles: [],
+      homeParticleFrame: null,
+      homeParticleCanvasSize: { width: 0, height: 0, dpr: 1 },
       authForm: {
         username: 'ADMIN',
         password: '',
@@ -784,6 +870,7 @@ export default {
         { id: 'home', label: '推荐首页', icon: 'HM' },
         { id: 'profile', label: '个人主页', icon: 'PR' },
         { id: 'resources', label: '学习资料', icon: 'RS' },
+        { id: 'ai', label: 'AI 辅助', icon: 'AI' },
         { id: 'cards', label: '知识卡片', icon: 'CD' },
         { id: 'practice', label: '题目练习', icon: 'TR' },
         { id: 'wrong', label: '错题本', icon: 'ER' },
@@ -1243,7 +1330,7 @@ export default {
       }]))
       return [
         { title: '入口', items: ['home', 'profile'].map((id) => order.get(id)).filter(Boolean) },
-        { title: '学习', items: ['resources', 'cards', 'practice', 'wrong', 'plan'].map((id) => order.get(id)).filter(Boolean) },
+        { title: '学习', items: ['resources', 'ai', 'cards', 'practice', 'wrong', 'plan'].map((id) => order.get(id)).filter(Boolean) },
         { title: '系统', items: ['stats'].map((id) => order.get(id)).filter(Boolean) },
       ]
     },
@@ -1251,6 +1338,7 @@ export default {
       return [
         { id: 'home', code: 'HM', label: '首页' },
         { id: 'resources', code: 'RS', label: '资料' },
+        { id: 'ai', code: 'AI', label: '辅助' },
         { id: 'cards', code: 'CD', label: '卡片' },
         { id: 'practice', code: 'QB', label: '题库' },
         { id: 'wrong', code: 'ER', label: '错题' },
@@ -1310,14 +1398,23 @@ export default {
       this.loadStudyLinkOverview()
     }
     this.loadHomeBanners().finally(() => this.startBannerAutoplay())
+    this.startHomeParticleCanvas()
   },
   beforeUnmount() {
     this.stopBannerAutoplay()
+    this.stopHomeParticleCanvas()
   },
   watch: {
     activePanel(panel) {
       if (panel === 'home' && this.isLoggedIn) {
         this.loadStudyLinkOverview()
+        this.$nextTick(() => {
+          if (!this.homeParticleFrame) {
+            this.drawHomeParticles()
+          }
+          this.resizeHomeParticleCanvas()
+          this.seedHomeParticleBurst()
+        })
       }
       if (panel === 'plan' && this.isLoggedIn) {
         this.loadPlans()
@@ -1333,6 +1430,172 @@ export default {
       if (typeof window !== 'undefined') {
         window.requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: 'smooth' }))
       }
+    },
+    setHomePointerActive(active, event) {
+      this.homePointerActive = active
+      if (active && event) {
+        this.handleHomePointerMove(event, true)
+      }
+    },
+    handleHomePointerMove(event, force = false) {
+      if (typeof window === 'undefined' || !event?.currentTarget) return
+      const now = window.performance.now()
+      const interval = this.homePointerActive ? 10 : 34
+      if (!force && now - this.lastHomePetalAt < interval) return
+      this.lastHomePetalAt = now
+
+      const count = this.homePointerActive ? 22 : 9
+      for (let index = 0; index < count; index += 1) {
+        const spread = this.homePointerActive ? 42 : 24
+        const x = event.clientX + (Math.random() - 0.5) * spread
+        const y = event.clientY + (Math.random() - 0.5) * spread
+        const isPetal = index % 3 !== 0
+        this.homeParticles.push({
+          type: isPetal ? 'petal' : 'spark',
+          x,
+          y,
+          vx: (Math.random() - 0.5) * (this.homePointerActive ? 3.1 : 1.7),
+          vy: -0.9 - Math.random() * (this.homePointerActive ? 3.2 : 1.9),
+          drift: (Math.random() - 0.5) * 0.04,
+          life: 1,
+          decay: isPetal ? 0.01 + Math.random() * 0.006 : 0.018 + Math.random() * 0.01,
+          size: isPetal ? 12 + Math.random() * 18 : 3 + Math.random() * 5,
+          rotate: Math.random() * 360,
+          spin: (Math.random() - 0.5) * 7,
+          tone: index % 4,
+        })
+      }
+      if (this.homeParticles.length > 620) {
+        this.homeParticles.splice(0, this.homeParticles.length - 620)
+      }
+    },
+    startHomeParticleCanvas() {
+      if (typeof window === 'undefined') return
+      this.$nextTick(() => {
+        this.resizeHomeParticleCanvas()
+        window.addEventListener('resize', this.resizeHomeParticleCanvas)
+        this.drawHomeParticles()
+        this.seedHomeParticleBurst()
+      })
+    },
+    stopHomeParticleCanvas() {
+      if (typeof window === 'undefined') return
+      window.removeEventListener('resize', this.resizeHomeParticleCanvas)
+      if (this.homeParticleFrame) {
+        window.cancelAnimationFrame(this.homeParticleFrame)
+        this.homeParticleFrame = null
+      }
+      this.homeParticles = []
+    },
+    resizeHomeParticleCanvas() {
+      const canvas = this.$refs.homeParticleCanvas
+      if (!canvas) return
+      const dpr = Math.min(window.devicePixelRatio || 1, 2)
+      const width = Math.max(1, Math.round(window.innerWidth || 1))
+      const height = Math.max(1, Math.round(window.innerHeight || 1))
+      this.homeParticleCanvasSize = { width, height, dpr }
+      canvas.width = Math.round(width * dpr)
+      canvas.height = Math.round(height * dpr)
+      canvas.style.width = `${width}px`
+      canvas.style.height = `${height}px`
+    },
+    drawHomeParticles() {
+      const canvas = this.$refs.homeParticleCanvas
+      const context = canvas?.getContext?.('2d')
+      if (!canvas || !context) return
+      const { width, height, dpr } = this.homeParticleCanvasSize
+      context.clearRect(0, 0, canvas.width, canvas.height)
+      if (this.activePanel !== 'home') {
+        this.homeParticles = []
+        this.homeParticleFrame = window.requestAnimationFrame(this.drawHomeParticles)
+        return
+      }
+      context.save()
+      context.scale(dpr, dpr)
+      context.globalCompositeOperation = 'source-over'
+      this.homeParticles = this.homeParticles.filter((particle) => {
+        particle.life -= particle.decay
+        if (particle.life <= 0) return false
+        particle.vx += particle.drift
+        particle.vy += 0.018
+        particle.x += particle.vx
+        particle.y += particle.vy
+        particle.rotate += particle.spin
+        const alpha = Math.max(0, particle.life)
+        if (particle.type === 'spark') {
+          this.drawHomeSpark(context, particle, alpha)
+        } else {
+          this.drawHomePetalParticle(context, particle, alpha)
+        }
+        return particle.x > -40 && particle.x < width + 40 && particle.y > -60 && particle.y < height + 60
+      })
+      context.restore()
+      this.homeParticleFrame = window.requestAnimationFrame(this.drawHomeParticles)
+    },
+    seedHomeParticleBurst() {
+      if (typeof window === 'undefined' || this.activePanel !== 'home') return
+      const x = window.innerWidth * 0.72
+      const y = window.innerHeight * 0.32
+      for (let index = 0; index < 36; index += 1) {
+        this.homeParticles.push({
+          type: index % 3 === 0 ? 'spark' : 'petal',
+          x: x + (Math.random() - 0.5) * 120,
+          y: y + (Math.random() - 0.5) * 80,
+          vx: (Math.random() - 0.5) * 2.4,
+          vy: -0.7 - Math.random() * 1.8,
+          drift: (Math.random() - 0.5) * 0.04,
+          life: 0.9,
+          decay: 0.012 + Math.random() * 0.01,
+          size: index % 3 === 0 ? 4 + Math.random() * 4 : 12 + Math.random() * 14,
+          rotate: Math.random() * 360,
+          spin: (Math.random() - 0.5) * 7,
+          tone: index % 4,
+        })
+      }
+    },
+    drawHomeSpark(context, particle, alpha) {
+      const gradient = context.createRadialGradient(particle.x, particle.y, 0, particle.x, particle.y, particle.size * 3.2)
+      gradient.addColorStop(0, `rgba(255, 255, 255, ${0.9 * alpha})`)
+      gradient.addColorStop(0.28, `rgba(91, 136, 255, ${0.82 * alpha})`)
+      gradient.addColorStop(0.72, `rgba(238, 120, 206, ${0.46 * alpha})`)
+      gradient.addColorStop(1, 'rgba(161, 186, 255, 0)')
+      context.fillStyle = gradient
+      context.beginPath()
+      context.arc(particle.x, particle.y, particle.size * 3.2, 0, Math.PI * 2)
+      context.fill()
+    },
+    drawHomePetalParticle(context, particle, alpha) {
+      const colors = [
+        ['rgba(255, 202, 235, ', 'rgba(220, 94, 190, '],
+        ['rgba(201, 223, 255, ', 'rgba(74, 126, 242, '],
+        ['rgba(225, 207, 255, ', 'rgba(148, 105, 224, '],
+        ['rgba(206, 248, 255, ', 'rgba(54, 174, 197, '],
+      ][particle.tone] || ['rgba(255, 202, 235, ', 'rgba(220, 94, 190, ']
+      const width = particle.size * 0.64
+      const height = particle.size * 1.18
+      context.save()
+      context.translate(particle.x, particle.y)
+      context.rotate((particle.rotate * Math.PI) / 180)
+      context.scale(1, 0.96 + Math.sin(particle.rotate / 30) * 0.08)
+      const gradient = context.createLinearGradient(-width, -height, width, height)
+      gradient.addColorStop(0, `${colors[0]}${0.94 * alpha})`)
+      gradient.addColorStop(1, `${colors[1]}${0.76 * alpha})`)
+      context.fillStyle = gradient
+      context.strokeStyle = `rgba(64, 93, 190, ${0.58 * alpha})`
+      context.lineWidth = 1
+      context.beginPath()
+      context.moveTo(0, -height)
+      context.bezierCurveTo(width * 1.12, -height * 0.34, width * 0.86, height * 0.52, 0, height)
+      context.bezierCurveTo(-width * 0.88, height * 0.4, -width * 1.08, -height * 0.28, 0, -height)
+      context.closePath()
+      context.fill()
+      context.stroke()
+      context.beginPath()
+      context.moveTo(0, -height * 0.72)
+      context.quadraticCurveTo(width * 0.14, 0, 0, height * 0.62)
+      context.strokeStyle = `rgba(255, 255, 255, ${0.68 * alpha})`
+      context.stroke()
+      context.restore()
     },
     setBannerIndex(index) {
       const total = this.recommendationSlides.length

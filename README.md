@@ -13,7 +13,7 @@
 
 Required tools:
 
-- JDK 17
+- JDK 21
 - Maven 3.9+
 - Node.js LTS or newer
 - MySQL 8.4+

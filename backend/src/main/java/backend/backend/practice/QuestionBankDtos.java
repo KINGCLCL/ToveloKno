@@ -30,14 +30,19 @@ public final class QuestionBankDtos {
             List<String> options,
             Integer difficulty,
             String subject,
-            String knowledgePoint) {
+            String knowledgePoint,
+            String correctAnswer,
+            String analysis) {
     }
 
     public record AnswerRequest(
             @NotNull(message = "题目ID不能为空") Long questionId,
-            @NotBlank(message = "答案不能为空")
             @Size(max = 1000, message = "答案不能超过1000个字符") String userAnswer,
-            @NotBlank(message = "练习模式不能为空") String mode) {
+            @NotBlank(message = "练习模式不能为空") String mode,
+            Boolean selfCorrect) {
+        public AnswerRequest(Long questionId, String userAnswer, String mode) {
+            this(questionId, userAnswer, mode, null);
+        }
     }
 
     public record AnswerResult(

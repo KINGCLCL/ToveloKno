@@ -64,18 +64,59 @@ public final class LearningResourceDtos {
             @Size(max = 4000) String sourceExcerpt) {
     }
 
+    public record QuestionExtractionRequest(
+            @Min(1) @Max(80) Integer limit,
+            QuestionStatus status) {
+    }
+
+    public record ResourceImageQuestionRequest(
+            @Size(max = 120) String title,
+            @Size(max = 2_000_000) String imageDataUrl,
+            @Size(max = 500) String imageUrl,
+            @Min(1) Integer sourcePage,
+            QuestionStatus status) {
+    }
+
+    public record QuestionExtractionResponse(
+            Long resourceId,
+            String resourceName,
+            int createdCount,
+            int detectedCount,
+            List<String> warnings,
+            List<ExtractedQuestionPreview> previews,
+            List<backend.backend.question.QuestionResponse> questions) {
+    }
+
+    public record ExtractedQuestionPreview(
+            Long questionId,
+            String content,
+            QuestionType questionType,
+            List<String> options,
+            String correctAnswer,
+            String analysis,
+            Integer difficulty,
+            String subject,
+            String knowledgePoint,
+            Integer sourcePage,
+            String sourceExcerpt) {
+    }
+
     public record AnnotationPayload(
             String id,
             @Size(max = 40) String type,
             @Size(max = 40) String color,
+            @Size(max = 40) String coordinateSpace,
             Integer page,
+            Double pageWidth,
+            Double pageHeight,
+            Double zoom,
             Double x,
             Double y,
             Double width,
             Double height,
             List<PointPayload> points,
             @Size(max = 1200) String text,
-            LocalDateTime createdAt) {
+            String createdAt) {
     }
 
     public record PointPayload(

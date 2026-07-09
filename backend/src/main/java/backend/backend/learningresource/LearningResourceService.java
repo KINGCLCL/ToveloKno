@@ -4,12 +4,14 @@ import backend.backend.auth.AuthenticatedUser;
 import backend.backend.common.BusinessException;
 import backend.backend.common.PageResponse;
 import backend.backend.learningresource.LearningResourceDtos.AnnotationPayload;
+import backend.backend.learningresource.LearningResourceDtos.ResourceImageQuestionRequest;
 import backend.backend.learningresource.LearningResourceDtos.ResourceQuestionRequest;
 import backend.backend.learningresource.LearningResourceDtos.ResourceResponse;
 import backend.backend.question.QuestionResponse;
 import backend.backend.question.QuestionSaveRequest;
 import backend.backend.question.QuestionService;
 import backend.backend.question.QuestionStatus;
+import backend.backend.question.QuestionType;
 import backend.backend.service.OperationLogService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -28,6 +30,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Base64;
 import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
@@ -197,6 +200,42 @@ public class LearningResourceService {
     }
 
     @Transactional
+    public QuestionResponse createImageQuestion(
+            Long resourceId,
+            AuthenticatedUser currentUser,
+            ResourceImageQuestionRequest request) {
+        LearningResource resource = findOwned(resourceId, currentUser.getId());
+        String imageSource = normalizeImageSource(request);
+        String title = request.title() == null || request.title().isBlank()
+                ? "根据图片资料作答"
+                : request.title().trim();
+        Integer sourcePage = request.sourcePage() == null ? null : Math.max(1, request.sourcePage());
+
+        QuestionSaveRequest questionRequest = new QuestionSaveRequest();
+        questionRequest.setContent(truncateText(title, 120) + "\n" + imageSource);
+        questionRequest.setQuestionType(QuestionType.SHORT_ANSWER);
+        questionRequest.setOptions(List.of());
+        questionRequest.setCorrectAnswer("待补充");
+        questionRequest.setAnalysis("由学习资料图片保存生成，请人工补充答案解析。");
+        questionRequest.setDifficulty(3);
+        questionRequest.setSubject("学习资料");
+        questionRequest.setKnowledgePoint(truncateText(resource.getName(), 80));
+        questionRequest.setStatus(request.status() == null ? QuestionStatus.DRAFT : request.status());
+        questionRequest.setSourceType("RESOURCE_IMAGE_CAPTURE");
+        questionRequest.setSourceResourceId(resource.getId());
+        questionRequest.setSourceResourceName(resource.getName());
+        questionRequest.setSourcePage(sourcePage);
+        questionRequest.setSourceExcerpt(truncateText("图片题：" + resource.getName(), 4000));
+
+        QuestionResponse created = questionService.createQuestion(questionRequest, currentUser);
+        operationLogService.record(
+                currentUser.getId(),
+                "RESOURCE_IMAGE_TO_QUESTION",
+                "从学习资料图片保存题目：" + resource.getName());
+        return created;
+    }
+
+    @Transactional
     public ResourceResponse toggleFavorite(Long resourceId, AuthenticatedUser currentUser) {
         LearningResource resource = findOwned(resourceId, currentUser.getId());
         resource.setFavorite(!Boolean.TRUE.equals(resource.getFavorite()));
@@ -321,6 +360,59 @@ public class LearningResourceService {
             return "上传的学习资料，可记录阅读进度和标注。";
         }
         return description.trim().substring(0, Math.min(description.trim().length(), 800));
+    }
+
+    private String normalizeImageSource(ResourceImageQuestionRequest request) {
+        String imageDataUrl = request.imageDataUrl() == null ? "" : request.imageDataUrl().trim();
+        String imageUrl = request.imageUrl() == null ? "" : request.imageUrl().trim();
+        if (!imageDataUrl.isBlank()) {
+            if (!imageDataUrl.startsWith("data:image/")) {
+                throw new BusinessException("图片数据格式不正确");
+            }
+            return "![资料图片](" + saveDataUrlImage(imageDataUrl) + ")";
+        }
+        if (!imageUrl.isBlank()) {
+            return "![资料图片](" + imageUrl + ")";
+        }
+        throw new BusinessException("请先选择可保存为图片的资料页面");
+    }
+
+    private String saveDataUrlImage(String imageDataUrl) {
+        int commaIndex = imageDataUrl.indexOf(',');
+        if (commaIndex < 0) {
+            throw new BusinessException("图片数据格式不正确");
+        }
+        String meta = imageDataUrl.substring(0, commaIndex).toLowerCase(Locale.ROOT);
+        String extension = meta.contains("image/jpeg") || meta.contains("image/jpg") ? ".jpg" : ".png";
+        String base64 = imageDataUrl.substring(commaIndex + 1);
+        byte[] bytes;
+        try {
+            bytes = Base64.getDecoder().decode(base64);
+        } catch (IllegalArgumentException exception) {
+            throw new BusinessException("图片数据解码失败");
+        }
+        if (bytes.length == 0) {
+            throw new BusinessException("图片数据为空");
+        }
+        if (bytes.length > 2_000_000) {
+            throw new BusinessException("图片过大，请放大到需要的区域后重新保存");
+        }
+        String storedFilename = "question-capture-" + UUID.randomUUID() + extension;
+        try {
+            Files.createDirectories(uploadRoot);
+            Files.write(uploadRoot.resolve(storedFilename), bytes);
+        } catch (IOException exception) {
+            throw new IllegalStateException("图片题保存失败");
+        }
+        return "/uploads/resources/" + storedFilename;
+    }
+
+    private String truncateText(String value, int maxLength) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.length() <= maxLength ? trimmed : trimmed.substring(0, maxLength);
     }
 
     private String typeFrom(String extension) {

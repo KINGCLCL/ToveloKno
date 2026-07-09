@@ -1,24 +1,24 @@
 export const navigationItems = [
   { id: 'questions', label: '题目管理', icon: 'list' },
   { id: 'categories', label: '分类关系', icon: 'layers' },
-  { id: 'practice', label: '练习与复习', icon: 'shuffle' },
+  { id: 'practice', label: '在线做题', icon: 'shuffle' },
   { id: 'analytics', label: '数据统计', icon: 'pie-chart' },
   { id: 'settings', label: '题库设置', icon: 'settings' },
 ]
 
 export const questionStats = [
   { label: '题目总数', value: '1,286', unit: '题', note: '较上月 +42', icon: 'book-open', tone: 'blue' },
-  { label: '已发布', value: '856', unit: '题', note: '占总数 66.6%', icon: 'check-square', tone: 'green' },
+  { label: '已归档', value: '856', unit: '题', note: '占总数 66.6%', icon: 'check-square', tone: 'green' },
   { label: '草稿数', value: '286', unit: '题', note: '占总数 22.2%', icon: 'edit', tone: 'orange' },
   { label: '回收站', value: '144', unit: '题', note: '本周新增 11', icon: 'trash', tone: 'purple' },
 ]
 
 export const questions = [
-  { id: 1, content: '下列关于数据库事务的说法正确的是？', subject: '数据库', knowledge: '事务管理', type: '选择题', difficulty: 4, status: '已发布', updatedAt: '2026-07-03' },
-  { id: 2, content: 'SQL 中，以下哪个语句用于删除表中的数据？', subject: '数据库', knowledge: 'SQL 基础', type: '选择题', difficulty: 3, status: '已发布', updatedAt: '2026-07-02' },
+  { id: 1, content: '下列关于数据库事务的说法正确的是？', subject: '数据库', knowledge: '事务管理', type: '选择题', difficulty: 4, status: '已归档', updatedAt: '2026-07-03' },
+  { id: 2, content: 'SQL 中，以下哪个语句用于删除表中的数据？', subject: '数据库', knowledge: 'SQL 基础', type: '选择题', difficulty: 3, status: '已归档', updatedAt: '2026-07-02' },
   { id: 3, content: '请说明进程和线程的主要区别。', subject: '操作系统', knowledge: '进程与线程', type: '简答题', difficulty: 3, status: '草稿', updatedAt: '2026-07-02' },
-  { id: 4, content: '以下哪个排序算法的平均时间复杂度为 O(n log n)？', subject: '数据结构', knowledge: '排序算法', type: '选择题', difficulty: 4, status: '已发布', updatedAt: '2026-07-01' },
-  { id: 5, content: '二次函数的顶点坐标公式是 ______。', subject: '高等数学', knowledge: '函数基础', type: '填空题', difficulty: 2, status: '已发布', updatedAt: '2026-06-30' },
+  { id: 4, content: '以下哪个排序算法的平均时间复杂度为 O(n log n)？', subject: '数据结构', knowledge: '排序算法', type: '选择题', difficulty: 4, status: '已归档', updatedAt: '2026-07-01' },
+  { id: 5, content: '二次函数的顶点坐标公式是 ______。', subject: '高等数学', knowledge: '函数基础', type: '填空题', difficulty: 2, status: '已归档', updatedAt: '2026-06-30' },
   { id: 6, content: '简述 TCP 三次握手的过程与作用。', subject: '计算机网络', knowledge: '传输层', type: '简答题', difficulty: 4, status: '草稿', updatedAt: '2026-06-29' },
 ]
 
@@ -63,17 +63,16 @@ export const categoryRows = [
 ]
 
 export const practiceModes = [
-  { id: 'free', label: '自由练习', description: '按科目、知识点自由选题', icon: 'target', accent: 'blue' },
-  { id: 'chapter', label: '章节练习', description: '按照章节逐步巩固', icon: 'book-open', accent: 'violet' },
-  { id: 'random', label: '随机练习', description: '随机组题，全面练习', icon: 'shuffle', accent: 'cyan' },
-  { id: 'wrong', label: '错题重练', description: '针对错题，巩固薄弱点', icon: 'x-circle', accent: 'red' },
+  { id: 'free', label: '顺序练习', description: '按归档题目顺序进入练习', icon: 'target', accent: 'blue' },
+  { id: 'chapter', label: '分类练习', description: '按科目分类集中做题', icon: 'book-open', accent: 'violet' },
+  { id: 'random', label: '随机练习', description: '随机抽题，快速自测', icon: 'shuffle', accent: 'cyan' },
   { id: 'challenge', label: '高难挑战', description: '集中练习四星、五星题', icon: 'star', accent: 'gold' },
 ]
 
 export const recentPractice = [
   { title: '章节练习 · 数据库系统', meta: '20/20 题 · 正确率 85%', date: '07-03 14:30', icon: 'clipboard' },
   { title: '随机练习 · 操作系统', meta: '16/20 题 · 正确率 72%', date: '07-02 20:15', icon: 'shuffle' },
-  { title: '错题重练 · SQL 基础', meta: '15/15 题 · 正确率 93%', date: '07-01 19:40', icon: 'x-circle' },
+  { title: '归档练习 · SQL 基础', meta: '15/15 题 · 正确率 93%', date: '07-01 19:40', icon: 'check-square' },
 ]
 
 export const weakPoints = [

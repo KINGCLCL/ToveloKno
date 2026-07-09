@@ -94,6 +94,9 @@
               <button type="button" title="撤销" @click="undoAnnotation"><Undo2 :size="17" /></button>
               <button type="button" title="保存标注" @click="saveAnnotations"><Save :size="17" /></button>
               <button type="button" title="摘录入题库" :disabled="!selectedResource" @click="openExcerptModal"><FileQuestion :size="17" /></button>
+              <button type="button" title="保存图片题" :disabled="!canSaveImageQuestion" @click="saveImageQuestion">
+                <Sparkles :size="17" />
+              </button>
             </div>
             <div class="reader-tool-group">
               <button type="button" title="上一页" :disabled="currentPage <= 1" @click="changePage(-1)"><ChevronLeft :size="18" /></button>
@@ -141,7 +144,13 @@
                 <a v-if="selectedResource?.fileUrl" :href="assetUrl(selectedResource.fileUrl)" target="_blank" rel="noreferrer">打开原文件</a>
               </div>
               <div v-show="previewMode === 'docx'" class="docx-page" v-html="docxHtml"></div>
-              <img v-if="previewMode === 'image'" class="image-page" :src="assetUrl(selectedResource.fileUrl)" alt="学习资料" />
+              <img
+                v-if="previewMode === 'image'"
+                class="image-page"
+                :src="assetUrl(selectedResource.fileUrl)"
+                alt="学习资料"
+                @load="updateSurfaceSize"
+              />
               <div v-if="previewMode === 'unsupported'" class="unsupported-page">
                 <span>{{ iconFor(selectedResource) }}</span>
                 <h3>该文件已归档</h3>
@@ -170,15 +179,6 @@
                     opacity="0.28"
                     rx="2"
                   />
-                  <foreignObject
-                    v-else-if="annotation.type === 'note'"
-                    :x="annotation.x"
-                    :y="annotation.y"
-                    width="190"
-                    height="78"
-                  >
-                    <div class="annotation-note" :style="{ borderColor: annotation.color }">{{ annotation.text }}</div>
-                  </foreignObject>
                 </template>
                 <polyline
                   v-if="draftAnnotation?.type === 'pen'"
@@ -200,6 +200,28 @@
                   rx="2"
                 />
               </svg>
+              <div class="annotation-note-layer">
+                <article
+                  v-for="annotation in visibleNoteAnnotations"
+                  :key="annotation.id"
+                  class="annotation-note-card"
+                  :style="noteCardStyle(annotation)"
+                  @pointerdown.stop
+                  @pointermove.stop
+                  @pointerup.stop
+                  @click.stop
+                >
+                  <textarea
+                    :data-note-id="annotation.id"
+                    :value="annotation.text || ''"
+                    maxlength="1200"
+                    placeholder="输入笔记"
+                    @input="updateNoteText(annotation.id, $event.target.value)"
+                    @keydown.stop
+                  ></textarea>
+                  <button type="button" title="删除便签" @click="removeAnnotation(annotation.id)">×</button>
+                </article>
+              </div>
             </div>
           </div>
         </section>
@@ -241,6 +263,25 @@
               <FileQuestion :size="18" />
               <span>摘录入题库</span>
             </button>
+            <button class="resource-secondary" type="button" :disabled="!canSaveImageQuestion" @click="saveImageQuestion">
+              <Sparkles :size="18" />
+              <span>{{ savingImageQuestion ? '保存中...' : '保存图片题' }}</span>
+            </button>
+            <p v-if="extractError" class="resource-form-error">{{ extractError }}</p>
+            <div v-if="extractResult" class="ai-extract-result">
+              <strong>{{ extractResult.createdCount ? `已入库 ${extractResult.createdCount} 题` : '图片题已保存' }}</strong>
+              <span>{{ extractResult.message || '已作为草稿题加入题库，可到题库补充答案。' }}</span>
+              <p v-for="warning in extractResult.warnings || []" :key="warning">{{ warning }}</p>
+            </div>
+          </section>
+
+          <section v-if="extractResult?.previews?.length" class="ai-extract-preview">
+            <span class="resource-kicker">SAVED QUESTION</span>
+            <article v-for="question in extractResult.previews.slice(0, 3)" :key="question.questionId || question.content">
+              <strong>{{ questionTypeLabel(question.questionType) }}</strong>
+              <p>{{ question.content }}</p>
+              <small>答案：{{ question.correctAnswer || '待补充' }}</small>
+            </article>
           </section>
 
           <section>
@@ -388,6 +429,7 @@ import {
   RefreshCw,
   Save,
   Search,
+  Sparkles,
   Star,
   StickyNote,
   Trash2,
@@ -399,6 +441,7 @@ import {
   ZoomOut,
 } from '@lucide/vue'
 import {
+  createImageQuestionFromResource,
   createStudyPlan,
   createQuestionFromResource,
   deleteLearningResource,
@@ -431,6 +474,8 @@ const previewError = ref('')
 const docxHtml = ref('')
 const annotations = ref([])
 const draftAnnotation = ref(null)
+const annotationSaveTimer = ref(null)
+const annotationSaving = ref(false)
 const pdfDocument = shallowRef(null)
 const pdfCanvas = ref(null)
 const documentSurface = ref(null)
@@ -442,6 +487,9 @@ const sessionMinutes = ref(0)
 const excerptModalOpen = ref(false)
 const excerptSaving = ref(false)
 const excerptError = ref('')
+const savingImageQuestion = ref(false)
+const extractError = ref('')
+const extractResult = ref(null)
 const resourceToast = ref('')
 const excerptForm = reactive({
   content: '',
@@ -493,9 +541,21 @@ const surfaceStyle = computed(() => {
   }
 })
 const visibleAnnotations = computed(() =>
-  annotations.value.filter((item) => Number(item.page || 1) === Number(currentPage.value)),
+  annotations.value
+    .filter((item) => Number(item.page || 1) === Number(currentPage.value) && item.type !== 'note')
+    .map(displaySvgAnnotation),
+)
+const visibleNoteAnnotations = computed(() =>
+  annotations.value
+    .filter((item) => Number(item.page || 1) === Number(currentPage.value) && item.type === 'note')
+    .map(displayAnnotation),
 )
 const excerptIsChoice = computed(() => ['SINGLE_CHOICE', 'MULTIPLE_CHOICE'].includes(excerptForm.questionType))
+const canSaveImageQuestion = computed(() =>
+  Boolean(selectedResource.value)
+    && !savingImageQuestion.value
+    && (previewMode.value === 'pdf' || previewMode.value === 'image'),
+)
 
 onMounted(() => {
   loadResources()
@@ -504,6 +564,10 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   document.removeEventListener('fullscreenchange', handleFullscreenChange)
+  if (annotationSaveTimer.value) {
+    window.clearTimeout(annotationSaveTimer.value)
+    annotationSaveTimer.value = null
+  }
 })
 
 async function toggleReaderFullscreen() {
@@ -579,7 +643,9 @@ async function handleUpload(event) {
 
 async function selectResource(resource) {
   selectedResource.value = resource
-  annotations.value = Array.isArray(resource.annotations) ? [...resource.annotations] : []
+  extractError.value = ''
+  extractResult.value = null
+  annotations.value = normalizeAnnotations(resource.annotations)
   currentPage.value = Math.max(1, resource.currentPage || 1)
   pageCount.value = Math.max(1, resource.totalPages || 1)
   progressForm.progressPercent = resource.progressPercent || 0
@@ -595,15 +661,16 @@ async function renderSelected() {
   previewError.value = ''
   docxHtml.value = ''
   pdfDocument.value = null
-  const filename = (selectedResource.value.originalFilename || '').toLowerCase()
+  const filename = resourceFilename(selectedResource.value)
+  const mimeType = (selectedResource.value.mimeType || '').toLowerCase()
   await nextTick()
-  if (filename.endsWith('.pdf')) {
+  if (filename.endsWith('.pdf') || mimeType.includes('pdf')) {
     previewMode.value = 'pdf'
     await renderPdf()
-  } else if (filename.endsWith('.docx')) {
+  } else if (/\.(doc|docx)$/.test(filename) || mimeType.includes('wordprocessingml') || mimeType.includes('msword')) {
     previewMode.value = 'docx'
     await renderDocx()
-  } else if (/\.(png|jpg|jpeg|webp|gif)$/.test(filename)) {
+  } else if (/\.(png|jpg|jpeg|webp|gif)$/.test(filename) || mimeType.startsWith('image/')) {
     previewMode.value = 'image'
     await nextTick()
     updateSurfaceSize()
@@ -645,7 +712,6 @@ async function renderPdf() {
     surfaceSize.height = baseViewport.height
     renderedSize.width = viewport.width
     renderedSize.height = viewport.height
-    normalizeCurrentPageAnnotations(viewport.width / baseViewport.width)
     previewError.value = ''
   } catch (error) {
     console.error(error)
@@ -656,12 +722,30 @@ async function renderPdf() {
 }
 
 async function renderDocx() {
-  const response = await fetch(assetUrl(selectedResource.value.fileUrl))
-  const arrayBuffer = await response.arrayBuffer()
-  const result = await mammoth.convertToHtml({ arrayBuffer })
-  docxHtml.value = result.value || '<p>文档暂无可预览内容。</p>'
+  try {
+    const response = await fetch(assetUrl(selectedResource.value.fileUrl))
+    if (!response.ok) {
+      throw new Error(`DOCX request failed: ${response.status}`)
+    }
+    const arrayBuffer = await response.arrayBuffer()
+    const result = await mammoth.convertToHtml({ arrayBuffer })
+    docxHtml.value = result.value || '<p>文档暂无可预览内容。</p>'
+    previewError.value = ''
+  } catch (error) {
+    console.error(error)
+    previewError.value = `文档预览失败：${error?.message || '未知错误'}`
+    docxHtml.value = '<p>文档没有成功解析，可先打开原文件查看。</p>'
+  }
   await nextTick()
   updateSurfaceSize()
+}
+
+function resourceFilename(resource) {
+  return [
+    resource?.originalFilename,
+    resource?.name,
+    resource?.fileUrl,
+  ].filter(Boolean).join(' ').toLowerCase()
 }
 
 function updateSurfaceSize() {
@@ -682,7 +766,7 @@ async function changePage(delta) {
 function startAnnotation(event) {
   if (tool.value === 'pan' || !selectedResource.value) return
   event.preventDefault()
-  const point = pointerPoint(event)
+  const point = pointerPagePoint(event)
   if (tool.value === 'eraser') {
     eraseAt(point)
     return
@@ -693,6 +777,8 @@ function startAnnotation(event) {
     color: color.value,
     page: currentPage.value,
     coordinateSpace: 'page',
+    pageWidth: surfaceSize.width,
+    pageHeight: surfaceSize.height,
     zoom: zoom.value,
     createdAt: new Date().toISOString(),
   }
@@ -701,21 +787,21 @@ function startAnnotation(event) {
   } else if (tool.value === 'highlight') {
     draftAnnotation.value = { ...base, startX: point.x, startY: point.y, x: point.x, y: point.y, width: 1, height: 1 }
   } else if (tool.value === 'note') {
-    const text = window.prompt('便签内容')
-    if (text) {
-      annotations.value.push({ ...base, x: point.x, y: point.y, text })
-    }
+    const annotation = { ...base, x: point.x, y: point.y, width: notePageSize().width, height: notePageSize().height, text: '' }
+    annotations.value.push(annotation)
+    scheduleAnnotationSave()
+    nextTick(() => focusNote(annotation.id))
   }
 }
 
 function moveAnnotation(event) {
   if (tool.value === 'eraser' && selectedResource.value) {
     event.preventDefault()
-    eraseAt(pointerPoint(event))
+    eraseAt(pointerPagePoint(event))
     return
   }
   if (!draftAnnotation.value) return
-  const point = pointerPoint(event)
+  const point = pointerPagePoint(event)
   if (draftAnnotation.value.type === 'pen') {
     draftAnnotation.value.points.push(point)
   } else if (draftAnnotation.value.type === 'highlight') {
@@ -735,9 +821,10 @@ function finishAnnotation() {
   delete next.startY
   annotations.value.push(next)
   draftAnnotation.value = null
+  scheduleAnnotationSave()
 }
 
-function pointerPoint(event) {
+function pointerPagePoint(event) {
   const rect = documentSurface.value.getBoundingClientRect()
   return {
     x: Math.max(0, Math.min(surfaceSize.width, ((event.clientX - rect.left) / rect.width) * surfaceSize.width)),
@@ -745,38 +832,14 @@ function pointerPoint(event) {
   }
 }
 
-function normalizeCurrentPageAnnotations(currentScale = 1) {
-  const page = Number(currentPage.value || 1)
-  annotations.value = annotations.value.map((annotation) => {
-    if (Number(annotation.page || 1) !== page || annotation.coordinateSpace === 'page') return annotation
-    const ratio = Number(annotation.zoom || 0) ? Number(annotation.zoom || 100) / 100 : currentScale
-    if (!ratio || ratio === 1) return { ...annotation, coordinateSpace: 'page' }
-    return scaleAnnotation(annotation, 1 / ratio)
-  })
-}
-
-function scaleAnnotation(annotation, factor) {
-  const next = { ...annotation, coordinateSpace: 'page' }
-  if (annotation.type === 'pen') {
-    next.points = (annotation.points || []).map((point) => ({
-      x: Number(point.x || 0) * factor,
-      y: Number(point.y || 0) * factor,
-    }))
-  } else {
-    next.x = Number(annotation.x || 0) * factor
-    next.y = Number(annotation.y || 0) * factor
-    if ('width' in annotation) next.width = Number(annotation.width || 0) * factor
-    if ('height' in annotation) next.height = Number(annotation.height || 0) * factor
-  }
-  return next
-}
-
 function undoAnnotation() {
+  if (!annotations.value.length) return
   annotations.value.pop()
+  scheduleAnnotationSave()
 }
 
 function eraseAt(point) {
-  const radius = 22
+  const radius = toPageLength(22)
   const before = annotations.value.length
   annotations.value = annotations.value.filter((annotation) => {
     if (Number(annotation.page || 1) !== Number(currentPage.value)) return true
@@ -784,6 +847,7 @@ function eraseAt(point) {
   })
   if (before !== annotations.value.length) {
     draftAnnotation.value = null
+    scheduleAnnotationSave()
   }
 }
 
@@ -795,7 +859,7 @@ function hitAnnotation(annotation, point, radius) {
     return hitRect(annotation, point, radius)
   }
   if (annotation.type === 'note') {
-    return hitRect({ x: annotation.x, y: annotation.y, width: 190, height: 78 }, point, radius)
+    return hitRect({ x: annotation.x, y: annotation.y, width: annotation.width || notePageSize().width, height: annotation.height || notePageSize().height }, point, radius)
   }
   return false
 }
@@ -812,10 +876,170 @@ function distance(first, second) {
   return Math.hypot(Number(first.x) - Number(second.x), Number(first.y) - Number(second.y))
 }
 
-async function saveAnnotations() {
+async function saveAnnotations(options = {}) {
   if (!selectedResource.value) return
-  const response = await updateLearningResourceAnnotations(selectedResource.value.id, annotations.value)
-  selectedResource.value = response.data?.data || selectedResource.value
+  if (annotationSaveTimer.value) {
+    window.clearTimeout(annotationSaveTimer.value)
+    annotationSaveTimer.value = null
+  }
+  annotationSaving.value = true
+  try {
+    const response = await updateLearningResourceAnnotations(selectedResource.value.id, annotations.value.map(prepareAnnotationForSave))
+    const updated = response.data?.data || selectedResource.value
+    selectedResource.value = options.silent ? { ...updated, annotations: annotations.value } : updated
+    if (!options.silent) {
+      annotations.value = normalizeAnnotations(updated.annotations)
+    }
+    resources.value = resources.value.map((item) => (item.id === updated.id ? updated : item))
+    if (!options.silent) showToast('标注已保存到资料')
+  } finally {
+    annotationSaving.value = false
+  }
+}
+
+function scheduleAnnotationSave() {
+  if (!selectedResource.value) return
+  if (annotationSaveTimer.value) window.clearTimeout(annotationSaveTimer.value)
+  annotationSaveTimer.value = window.setTimeout(() => {
+    annotationSaveTimer.value = null
+    saveAnnotations({ silent: true }).catch(() => {
+      extractError.value = '标注自动保存失败，请点击保存标注重试'
+    })
+  }, 700)
+}
+
+function updateNoteText(id, text) {
+  annotations.value = annotations.value.map((annotation) =>
+    annotation.id === id ? { ...annotation, text, updatedAt: new Date().toISOString() } : annotation,
+  )
+  scheduleAnnotationSave()
+}
+
+function removeAnnotation(id) {
+  annotations.value = annotations.value.filter((annotation) => annotation.id !== id)
+  scheduleAnnotationSave()
+}
+
+function focusNote(id) {
+  documentSurface.value?.querySelector?.(`[data-note-id="${id}"]`)?.focus?.()
+}
+
+function normalizeAnnotations(value) {
+  if (!Array.isArray(value)) return []
+  return value.map((annotation) => {
+    const pageWidth = Number(annotation.pageWidth || 0) || null
+    const pageHeight = Number(annotation.pageHeight || 0) || null
+    const normalized = {
+      ...annotation,
+      id: annotation.id || `ann-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      page: Math.max(1, Number(annotation.page || 1)),
+      color: annotation.color || '#3d7cff',
+      coordinateSpace: annotation.coordinateSpace || 'page',
+      pageWidth,
+      pageHeight,
+      zoom: Number(annotation.zoom || 100),
+    }
+    if (normalized.type === 'pen') {
+      normalized.points = (annotation.points || []).map((point) => ({
+        x: Number(point.x || 0),
+        y: Number(point.y || 0),
+      }))
+    } else {
+      normalized.x = Number(annotation.x || 0)
+      normalized.y = Number(annotation.y || 0)
+      normalized.width = Number(annotation.width || (normalized.type === 'note' ? notePageSize().width : 0))
+      normalized.height = Number(annotation.height || (normalized.type === 'note' ? notePageSize().height : 0))
+    }
+    return normalized
+  })
+}
+
+function prepareAnnotationForSave(annotation) {
+  const prepared = {
+    id: annotation.id,
+    type: annotation.type,
+    color: annotation.color,
+    coordinateSpace: 'page',
+    page: Math.max(1, Number(annotation.page || 1)),
+    pageWidth: Number.isFinite(Number(annotation.pageWidth)) ? Number(annotation.pageWidth) : null,
+    pageHeight: Number.isFinite(Number(annotation.pageHeight)) ? Number(annotation.pageHeight) : null,
+    zoom: Number(annotation.zoom || zoom.value || 100),
+    x: Number.isFinite(Number(annotation.x)) ? Number(annotation.x) : null,
+    y: Number.isFinite(Number(annotation.y)) ? Number(annotation.y) : null,
+    width: Number.isFinite(Number(annotation.width)) ? Number(annotation.width) : null,
+    height: Number.isFinite(Number(annotation.height)) ? Number(annotation.height) : null,
+    points: Array.isArray(annotation.points)
+      ? annotation.points.map((point) => ({ x: Number(point.x || 0), y: Number(point.y || 0) }))
+      : null,
+    text: annotation.text || null,
+    createdAt: annotation.createdAt || new Date().toISOString(),
+  }
+  return prepared
+}
+
+function displaySvgAnnotation(annotation) {
+  const scaleX = surfaceSize.width / Math.max(1, Number(annotation.pageWidth || surfaceSize.width || 1))
+  const scaleY = surfaceSize.height / Math.max(1, Number(annotation.pageHeight || surfaceSize.height || 1))
+  if (annotation.type === 'pen') {
+    return {
+      ...annotation,
+      points: (annotation.points || []).map((point) => ({
+        x: Number(point.x || 0) * scaleX,
+        y: Number(point.y || 0) * scaleY,
+      })),
+    }
+  }
+  return {
+    ...annotation,
+    x: Number(annotation.x || 0) * scaleX,
+    y: Number(annotation.y || 0) * scaleY,
+    width: Number(annotation.width || 0) * scaleX,
+    height: Number(annotation.height || 0) * scaleY,
+  }
+}
+
+function displayAnnotation(annotation) {
+  const scaleX = renderedSize.width / Math.max(1, Number(annotation.pageWidth || surfaceSize.width || 1))
+  const scaleY = renderedSize.height / Math.max(1, Number(annotation.pageHeight || surfaceSize.height || 1))
+  if (annotation.type === 'pen') {
+    return {
+      ...annotation,
+      points: (annotation.points || []).map((point) => ({
+        x: Number(point.x || 0) * scaleX,
+        y: Number(point.y || 0) * scaleY,
+      })),
+    }
+  }
+  return {
+    ...annotation,
+    x: Number(annotation.x || 0) * scaleX,
+    y: Number(annotation.y || 0) * scaleY,
+    width: Number(annotation.width || 0) * scaleX,
+    height: Number(annotation.height || 0) * scaleY,
+  }
+}
+
+function noteCardStyle(annotation) {
+  const width = Math.max(132, annotation.width || 190)
+  const height = Math.max(74, annotation.height || 78)
+  return {
+    left: `${annotation.x}px`,
+    top: `${annotation.y}px`,
+    width: `${width}px`,
+    minHeight: `${height}px`,
+    borderColor: annotation.color,
+  }
+}
+
+function notePageSize() {
+  return {
+    width: Math.min(190, Math.max(120, surfaceSize.width * 0.22)),
+    height: 78,
+  }
+}
+
+function toPageLength(pixelLength) {
+  return (Number(pixelLength) || 0) * (surfaceSize.width / Math.max(1, renderedSize.width || surfaceSize.width))
 }
 
 function openExcerptModal() {
@@ -899,6 +1123,66 @@ async function submitExcerptQuestion() {
   } finally {
     excerptSaving.value = false
   }
+}
+
+async function saveImageQuestion() {
+  if (!selectedResource.value || !canSaveImageQuestion.value) return
+  savingImageQuestion.value = true
+  extractError.value = ''
+  extractResult.value = null
+  try {
+    const payload = await imageQuestionPayload()
+    const response = await createImageQuestionFromResource(selectedResource.value.id, {
+      ...payload,
+      status: 'DRAFT',
+    })
+    const question = response.data?.data
+    extractResult.value = {
+      createdCount: 1,
+      message: '图片已保存为草稿题，可到题库补充答案。',
+      previews: question ? [question] : [],
+    }
+    showToast('图片题已加入题库草稿')
+  } catch (error) {
+    extractError.value = error.response?.data?.message || error.message || '图片题保存失败'
+  } finally {
+    savingImageQuestion.value = false
+  }
+}
+
+async function imageQuestionPayload() {
+  const page = Math.max(1, Number(currentPage.value || 1))
+  const title = `${selectedResource.value.name} · 第 ${page} 页`
+  if (previewMode.value === 'pdf') {
+    const canvas = pdfCanvas.value
+    if (!canvas || !canvas.width || !canvas.height) {
+      throw new Error('当前 PDF 页面还没有渲染完成')
+    }
+    return {
+      title,
+      imageDataUrl: canvasToCompressedDataUrl(canvas),
+      sourcePage: page,
+    }
+  }
+  if (previewMode.value === 'image') {
+    return {
+      title: selectedResource.value.name,
+      imageUrl: selectedResource.value.fileUrl,
+      sourcePage: 1,
+    }
+  }
+  throw new Error('当前资料不能直接保存为图片题')
+}
+
+function canvasToCompressedDataUrl(canvas) {
+  const maxWidth = 1200
+  const scale = Math.min(1, maxWidth / Math.max(1, canvas.width))
+  const target = document.createElement('canvas')
+  target.width = Math.max(1, Math.round(canvas.width * scale))
+  target.height = Math.max(1, Math.round(canvas.height * scale))
+  const context = target.getContext('2d')
+  context.drawImage(canvas, 0, 0, target.width, target.height)
+  return target.toDataURL('image/jpeg', 0.82)
 }
 
 async function markLearnedHere() {
@@ -1000,6 +1284,16 @@ function pointsToString(points = []) {
 
 function annotationLabel(annotation) {
   return annotation.type === 'pen' ? '手写标记' : annotation.type === 'highlight' ? '重点高亮' : '资料标注'
+}
+
+function questionTypeLabel(type) {
+  return {
+    SINGLE_CHOICE: '单选题',
+    MULTIPLE_CHOICE: '多选题',
+    TRUE_FALSE: '判断题',
+    FILL_BLANK: '填空题',
+    SHORT_ANSWER: '简答题',
+  }[type] || type
 }
 
 function formatDateTime(value) {
@@ -1564,6 +1858,7 @@ function clamp(value, min, max) {
   content: "";
   background: linear-gradient(90deg, transparent, rgba(237, 199, 103, 0.9));
   clip-path: polygon(18% 0, 100% 0, 82% 100%, 0 100%);
+  z-index: 3;
 }
 
 .mode-pen .document-surface,
@@ -1580,16 +1875,46 @@ function clamp(value, min, max) {
 }
 
 .docx-page {
+  position: relative;
+  z-index: 1;
   width: min(760px, 72vw);
   min-height: 960px;
   padding: 56px 64px;
   color: #202a44;
   font-size: 16px;
   line-height: 1.75;
+  background: #fff;
 }
 
 .docx-page :deep(p) {
   margin: 0 0 1em;
+  color: #202a44;
+}
+
+.docx-page :deep(*) {
+  max-width: 100%;
+  color: inherit;
+  background-color: transparent !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+}
+
+.docx-page :deep(span),
+.docx-page :deep(p),
+.docx-page :deep(div),
+.docx-page :deep(li) {
+  color: #202a44 !important;
+  opacity: 1 !important;
+}
+
+.docx-page :deep(table) {
+  border-collapse: collapse;
+}
+
+.docx-page :deep(td),
+.docx-page :deep(th) {
+  border: 1px solid rgba(73, 116, 221, 0.18);
+  padding: 6px 8px;
 }
 
 .image-page {
@@ -1644,12 +1969,50 @@ function clamp(value, min, max) {
   pointer-events: none;
 }
 
-.annotation-note {
-  padding: 8px;
-  color: var(--resource-ink);
+.annotation-note-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.annotation-note-card {
+  position: absolute;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 22px;
+  gap: 4px;
+  padding: 7px;
   border-left: 4px solid;
-  background: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 8px 18px rgba(55, 77, 134, 0.14);
+  pointer-events: auto;
+}
+
+.annotation-note-card textarea {
+  min-width: 0;
+  min-height: 60px;
+  resize: vertical;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--resource-ink);
+  font-family: inherit;
   font-size: 12px;
+  font-weight: 900;
+  line-height: 1.45;
+}
+
+.annotation-note-card button {
+  display: grid;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  place-items: center;
+  color: var(--resource-muted);
+  border: 1px solid rgba(73, 116, 221, 0.15);
+  border-radius: 4px;
+  background: rgba(248, 250, 255, 0.9);
+  cursor: pointer;
   font-weight: 900;
 }
 
@@ -1674,6 +2037,7 @@ function clamp(value, min, max) {
 
 .progress-panel {
   justify-items: center;
+  min-width: 0;
 }
 
 .progress-panel > .resource-kicker {
@@ -1682,8 +2046,8 @@ function clamp(value, min, max) {
 
 .progress-orbit {
   display: grid;
-  width: 138px;
-  height: 138px;
+  width: min(138px, 100%);
+  aspect-ratio: 1;
   place-items: center;
   border-radius: 50%;
   background:
@@ -1696,8 +2060,8 @@ function clamp(value, min, max) {
 
 .progress-orbit > div {
   display: grid;
-  width: 104px;
-  height: 104px;
+  width: min(104px, 76%);
+  aspect-ratio: 1;
   place-items: center;
   align-content: center;
   border-radius: 50%;
@@ -1707,7 +2071,7 @@ function clamp(value, min, max) {
 
 .progress-orbit strong {
   color: var(--resource-blue);
-  font-size: 36px;
+  font-size: 34px;
   line-height: 1;
 }
 
@@ -1773,6 +2137,7 @@ function clamp(value, min, max) {
   display: flex;
   min-height: 44px;
   width: 100%;
+  min-width: 0;
   align-items: center;
   justify-content: center;
   gap: 8px;
@@ -1785,6 +2150,7 @@ function clamp(value, min, max) {
   display: flex;
   min-height: 42px;
   width: 100%;
+  min-width: 0;
   align-items: center;
   justify-content: center;
   gap: 8px;
@@ -1797,7 +2163,14 @@ function clamp(value, min, max) {
   font-weight: 900;
 }
 
-.resource-primary:disabled {
+.resource-primary span,
+.resource-secondary span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.resource-primary:disabled,
+.resource-secondary:disabled {
   cursor: not-allowed;
   filter: grayscale(0.35);
   opacity: 0.55;
@@ -2005,6 +2378,46 @@ function clamp(value, min, max) {
   font-weight: 900;
 }
 
+.ai-extract-result,
+.ai-extract-preview article {
+  display: grid;
+  gap: 5px;
+  width: 100%;
+  padding: 10px;
+  border-radius: 6px;
+  background: rgba(79, 136, 255, 0.06);
+  box-shadow: inset 0 0 0 1px rgba(73, 116, 221, 0.12);
+}
+
+.ai-extract-result strong,
+.ai-extract-preview strong {
+  color: var(--resource-blue);
+  font-size: 13px;
+}
+
+.ai-extract-result span,
+.ai-extract-result p,
+.ai-extract-preview p,
+.ai-extract-preview small {
+  margin: 0;
+  color: var(--resource-muted);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.55;
+}
+
+.ai-extract-preview {
+  align-items: stretch;
+}
+
+.ai-extract-preview p {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  color: var(--resource-ink);
+}
+
 .resource-toast {
   position: fixed;
   right: 22px;
@@ -2088,7 +2501,8 @@ function clamp(value, min, max) {
 
   .resource-inspector {
     grid-column: 1 / -1;
-    grid-template-columns: 1.1fr 1fr 1fr;
+    grid-template-columns: 1fr;
+    overflow: visible;
   }
 }
 

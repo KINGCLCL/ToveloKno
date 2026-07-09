@@ -126,12 +126,14 @@ public class QuestionBankInteractionService {
             throw new BusinessException("该题目当前不可练习");
         }
 
-        boolean correct = answersEqual(
-                question.getQuestionType(), question.getCorrectAnswer(), request.userAnswer());
+        String userAnswer = normalizeUserAnswer(request.userAnswer());
+        boolean correct = request.selfCorrect() != null
+                ? Boolean.TRUE.equals(request.selfCorrect())
+                : answersEqual(question.getQuestionType(), question.getCorrectAnswer(), userAnswer);
         AnswerRecord record = new AnswerRecord();
         record.setUserId(currentUser.getId());
         record.setQuestionId(question.getId());
-        record.setUserAnswer(request.userAnswer().trim());
+        record.setUserAnswer(userAnswer);
         record.setCorrect(correct);
         record.setPracticeMode(mode);
         answerRecordRepository.save(record);
@@ -345,7 +347,9 @@ public class QuestionBankInteractionService {
                 readOptions(question.getOptionsJson()),
                 question.getDifficulty(),
                 question.getSubject(),
-                question.getKnowledgePoint());
+                question.getKnowledgePoint(),
+                question.getCorrectAnswer(),
+                question.getAnalysis());
     }
 
     private List<String> readOptions(String optionsJson) {
@@ -364,7 +368,12 @@ public class QuestionBankInteractionService {
         return normalizePlainAnswer(expected).equals(normalizePlainAnswer(actual));
     }
 
+    private String normalizeUserAnswer(String value) {
+        return value == null || value.isBlank() ? "未填写" : value.trim();
+    }
+
     private String normalizeChoiceAnswer(String value) {
+        if (value == null) return "";
         return String.join(",", java.util.Arrays.stream(value.toUpperCase(Locale.ROOT)
                         .replaceAll("[，；;]", ",").split("[,\\s]+"))
                 .map(String::trim)
@@ -374,6 +383,7 @@ public class QuestionBankInteractionService {
     }
 
     private String normalizePlainAnswer(String value) {
+        if (value == null) return "";
         return value.trim().replaceAll("\\s+", " ").toLowerCase(Locale.ROOT);
     }
 

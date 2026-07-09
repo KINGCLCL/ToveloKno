@@ -5,10 +5,13 @@ import backend.backend.service.OperationLogService;
 import backend.backend.wrongquestion.dto.WrongQuestionResponse;
 import backend.backend.wrongquestion.entity.WrongQuestion;
 import backend.backend.wrongquestion.repository.WrongQuestionRepository;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.List;
 
 /**
@@ -19,12 +22,15 @@ public class WrongQuestionService {
 
     private final WrongQuestionRepository wrongQuestionRepository;
     private final OperationLogService operationLogService;
+    private final ObjectMapper objectMapper;
 
     public WrongQuestionService(
             WrongQuestionRepository wrongQuestionRepository,
-            OperationLogService operationLogService) {
+            OperationLogService operationLogService,
+            ObjectMapper objectMapper) {
         this.wrongQuestionRepository = wrongQuestionRepository;
         this.operationLogService = operationLogService;
+        this.objectMapper = objectMapper;
     }
 
     /**
@@ -89,6 +95,7 @@ public class WrongQuestionService {
                 view.getQuestionId(),
                 view.getContent(),
                 view.getQuestionType(),
+                readOptions(view.getOptionsJson()),
                 view.getCorrectAnswer(),
                 view.getAnalysis(),
                 view.getDifficulty(),
@@ -102,5 +109,17 @@ public class WrongQuestionService {
                 view.getLastWrongAt(),
                 view.getLastReviewedAt()
         );
+    }
+
+    private List<String> readOptions(String optionsJson) {
+        if (optionsJson == null || optionsJson.isBlank()) {
+            return List.of();
+        }
+        try {
+            return objectMapper.readValue(optionsJson, new TypeReference<>() {
+            });
+        } catch (Exception ignored) {
+            return List.of();
+        }
     }
 }

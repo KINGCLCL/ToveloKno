@@ -6,6 +6,9 @@ import backend.backend.common.ApiResponse;
 import backend.backend.common.PageResponse;
 import backend.backend.learningresource.LearningResourceDtos.AnnotationsRequest;
 import backend.backend.learningresource.LearningResourceDtos.ProgressRequest;
+import backend.backend.learningresource.LearningResourceDtos.QuestionExtractionRequest;
+import backend.backend.learningresource.LearningResourceDtos.QuestionExtractionResponse;
+import backend.backend.learningresource.LearningResourceDtos.ResourceImageQuestionRequest;
 import backend.backend.learningresource.LearningResourceDtos.ResourceQuestionRequest;
 import backend.backend.learningresource.LearningResourceDtos.ResourceResponse;
 import backend.backend.question.QuestionResponse;
@@ -29,9 +32,13 @@ import org.springframework.web.multipart.MultipartFile;
 public class LearningResourceController {
 
     private final LearningResourceService learningResourceService;
+    private final QuestionExtractionService questionExtractionService;
 
-    public LearningResourceController(LearningResourceService learningResourceService) {
+    public LearningResourceController(
+            LearningResourceService learningResourceService,
+            QuestionExtractionService questionExtractionService) {
         this.learningResourceService = learningResourceService;
+        this.questionExtractionService = questionExtractionService;
     }
 
     @GetMapping
@@ -97,6 +104,29 @@ public class LearningResourceController {
         return ApiResponse.success(
                 "题目已加入题库",
                 learningResourceService.createQuestionFromExcerpt(resourceId, currentUser, request)
+        );
+    }
+
+    @PostMapping("/{resourceId}/questions/image")
+    public ApiResponse<QuestionResponse> createImageQuestion(
+            @CurrentUser AuthenticatedUser currentUser,
+            @PathVariable Long resourceId,
+            @Valid @org.springframework.web.bind.annotation.RequestBody ResourceImageQuestionRequest request) {
+        return ApiResponse.success(
+                "图片题已加入题库",
+                learningResourceService.createImageQuestion(resourceId, currentUser, request)
+        );
+    }
+
+    @PostMapping("/{resourceId}/questions/extract")
+    public ApiResponse<QuestionExtractionResponse> extractQuestions(
+            @CurrentUser AuthenticatedUser currentUser,
+            @PathVariable Long resourceId,
+            @Valid @org.springframework.web.bind.annotation.RequestBody(required = false) QuestionExtractionRequest request) {
+        QuestionExtractionRequest payload = request == null ? new QuestionExtractionRequest(null, null) : request;
+        return ApiResponse.success(
+                "识别完成",
+                questionExtractionService.extractAndCreate(resourceId, currentUser, payload.limit(), payload.status())
         );
     }
 

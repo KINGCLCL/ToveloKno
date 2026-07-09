@@ -157,6 +157,36 @@ export function createQuestionFromResource(resourceId, data) {
   return api.post(`/resources/${resourceId}/questions`, data)
 }
 
+export function createImageQuestionFromResource(resourceId, data) {
+  return api.post(`/resources/${resourceId}/questions/image`, data, {
+    timeout: 120000,
+  })
+}
+
+export function extractQuestionsFromResource(resourceId, data = {}) {
+  return api.post(`/resources/${resourceId}/questions/extract`, data, {
+    timeout: 180000,
+  })
+}
+
+export function getAiAssistantStatus() {
+  return api.get('/ai-assistant/status')
+}
+
+export function analyzeWithAiAssistant(data) {
+  return api.post('/ai-assistant/analyze', data, {
+    timeout: 180000,
+  })
+}
+
+export function generateQuestionBankPractice(data) {
+  return api.post('/question-bank/practice/questions', data)
+}
+
+export function submitQuestionBankPracticeAnswer(data) {
+  return api.post('/question-bank/practice/answers', data)
+}
+
 export function toggleLearningResourceFavorite(resourceId) {
   return api.put(`/resources/${resourceId}/favorite`)
 }
@@ -228,6 +258,10 @@ export function updateTag(tagId, data) {
 // 删除标签。
 export function deleteTag(tagId) {
   return api.delete(`/tags/${tagId}`)
+}
+
+export function createQuestion(data) {
+  return api.post('/questions', data)
 }
 
 // 查询学习计划列表，支持 status、planDate、page、size 参数。

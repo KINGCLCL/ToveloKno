@@ -1,6 +1,7 @@
 package backend.backend.wrongquestion.dto;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * 错题本列表返回对象。
@@ -11,6 +12,7 @@ public class WrongQuestionResponse {
     private Long questionId;
     private String content;
     private String questionType;
+    private List<String> options;
     private String correctAnswer;
     private String analysis;
     private Integer difficulty;
@@ -29,6 +31,7 @@ public class WrongQuestionResponse {
             Long questionId,
             String content,
             String questionType,
+            List<String> options,
             String correctAnswer,
             String analysis,
             Integer difficulty,
@@ -45,6 +48,7 @@ public class WrongQuestionResponse {
         this.questionId = questionId;
         this.content = content;
         this.questionType = questionType;
+        this.options = options;
         this.correctAnswer = correctAnswer;
         this.analysis = analysis;
         this.difficulty = difficulty;
@@ -73,6 +77,10 @@ public class WrongQuestionResponse {
 
     public String getQuestionType() {
         return questionType;
+    }
+
+    public List<String> getOptions() {
+        return options;
     }
 
     public String getCorrectAnswer() {

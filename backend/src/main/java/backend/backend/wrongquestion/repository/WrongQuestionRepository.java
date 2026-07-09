@@ -24,6 +24,7 @@ public interface WrongQuestionRepository extends JpaRepository<WrongQuestion, Lo
                 w.question_id AS questionId,
                 q.content AS content,
                 q.question_type AS questionType,
+                q.options_json AS optionsJson,
                 q.correct_answer AS correctAnswer,
                 q.analysis AS analysis,
                 q.difficulty AS difficulty,
@@ -55,6 +56,8 @@ public interface WrongQuestionRepository extends JpaRepository<WrongQuestion, Lo
         String getContent();
 
         String getQuestionType();
+
+        String getOptionsJson();
 
         String getCorrectAnswer();
 

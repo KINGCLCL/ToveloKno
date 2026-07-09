@@ -22,8 +22,12 @@ public class DatabaseMigrationConfig {
             addColumnIfMissing(jdbcTemplate, "user", "profile_background", "VARCHAR(255)");
             createLearningResourceTableIfMissing(jdbcTemplate);
             createHomeBannerTableIfMissing(jdbcTemplate);
+            addQuestionCoreColumns(jdbcTemplate);
+            addQuestionSoftDeleteColumns(jdbcTemplate);
             addQuestionSourceColumns(jdbcTemplate);
             addStudyPlanTargetColumns(jdbcTemplate);
+            createQuestionBankInteractionTablesIfMissing(jdbcTemplate);
+            addAnswerRecordColumns(jdbcTemplate);
         };
     }
 
@@ -53,10 +57,26 @@ public class DatabaseMigrationConfig {
         addColumnIfMissing(jdbcTemplate, "question", "source_excerpt", "TEXT NULL");
     }
 
+    private void addQuestionCoreColumns(JdbcTemplate jdbcTemplate) {
+        addColumnIfMissing(jdbcTemplate, "question", "subject", "VARCHAR(80) NULL");
+        addColumnIfMissing(jdbcTemplate, "question", "knowledge_point", "VARCHAR(80) NULL");
+        addColumnIfMissing(jdbcTemplate, "question", "status", "VARCHAR(20) NOT NULL DEFAULT 'DRAFT'");
+    }
+
+    private void addQuestionSoftDeleteColumns(JdbcTemplate jdbcTemplate) {
+        addColumnIfMissing(jdbcTemplate, "question", "deleted", "BOOLEAN NOT NULL DEFAULT FALSE");
+        addColumnIfMissing(jdbcTemplate, "question", "deleted_at", "TIMESTAMP NULL");
+    }
+
     private void addStudyPlanTargetColumns(JdbcTemplate jdbcTemplate) {
         addColumnIfMissing(jdbcTemplate, "study_plan", "target_type", "VARCHAR(40) NULL");
         addColumnIfMissing(jdbcTemplate, "study_plan", "target_id", "BIGINT NULL");
         addColumnIfMissing(jdbcTemplate, "study_plan", "target_title", "VARCHAR(180) NULL");
+    }
+
+    private void addAnswerRecordColumns(JdbcTemplate jdbcTemplate) {
+        addColumnIfMissing(jdbcTemplate, "answer_record", "practice_mode", "VARCHAR(30) NOT NULL DEFAULT 'free'");
+        addIndexIfMissing(jdbcTemplate, "answer_record", "idx_answer_user_time", "CREATE INDEX idx_answer_user_time ON answer_record (user_id, answered_at)");
     }
 
     private void createLearningResourceTableIfMissing(JdbcTemplate jdbcTemplate) {
@@ -101,5 +121,67 @@ public class DatabaseMigrationConfig {
                     updated_at TIMESTAMP NOT NULL
                 )
                 """);
+    }
+
+    private void createQuestionBankInteractionTablesIfMissing(JdbcTemplate jdbcTemplate) {
+        jdbcTemplate.execute("""
+                CREATE TABLE IF NOT EXISTS answer_record (
+                    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+                    user_id BIGINT NOT NULL,
+                    question_id BIGINT NOT NULL,
+                    user_answer VARCHAR(1000) NOT NULL,
+                    is_correct TINYINT NOT NULL DEFAULT 0,
+                    practice_mode VARCHAR(30) NOT NULL DEFAULT 'free',
+                    answered_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    KEY idx_answer_user_time (user_id, answered_at)
+                )
+                """);
+        jdbcTemplate.execute("""
+                CREATE TABLE IF NOT EXISTS wrong_question (
+                    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+                    user_id BIGINT NOT NULL,
+                    question_id BIGINT NOT NULL,
+                    wrong_count INT NOT NULL DEFAULT 1,
+                    mastered TINYINT NOT NULL DEFAULT 0,
+                    last_wrong_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    last_reviewed_at DATETIME,
+                    UNIQUE KEY uk_wrong_question (user_id, question_id)
+                )
+                """);
+        jdbcTemplate.execute("""
+                CREATE TABLE IF NOT EXISTS question_bank_setting (
+                    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+                    user_id BIGINT NOT NULL,
+                    bank_name VARCHAR(100) NOT NULL DEFAULT '我的题库',
+                    description VARCHAR(500),
+                    member_edit TINYINT(1) NOT NULL DEFAULT 1,
+                    member_export TINYINT(1) NOT NULL DEFAULT 1,
+                    review_required TINYINT(1) NOT NULL DEFAULT 0,
+                    practice_count INT NOT NULL DEFAULT 10,
+                    default_difficulty VARCHAR(20) NOT NULL DEFAULT '中等',
+                    sort_mode VARCHAR(20) NOT NULL DEFAULT '随机排序',
+                    show_answer VARCHAR(20) NOT NULL DEFAULT '立即显示',
+                    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    UNIQUE KEY uk_question_bank_setting_user (user_id)
+                )
+                """);
+    }
+
+    private void addIndexIfMissing(JdbcTemplate jdbcTemplate, String tableName, String indexName, String createSql) {
+        Boolean exists = jdbcTemplate.execute((ConnectionCallback<Boolean>) connection -> {
+            try (ResultSet indexes = connection.getMetaData().getIndexInfo(
+                    connection.getCatalog(), null, tableName, false, false)) {
+                while (indexes.next()) {
+                    if (indexName.equalsIgnoreCase(indexes.getString("INDEX_NAME"))) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+        });
+        if (!Boolean.TRUE.equals(exists)) {
+            jdbcTemplate.execute(createSql);
+        }
     }
 }
