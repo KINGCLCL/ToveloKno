@@ -60,6 +60,27 @@ public class User {
     @Column(name = "profile_background", length = 255)
     private String profileBackground;
 
+    // 个人主页短签名。
+    @Column(name = "profile_signature", length = 160)
+    private String profileSignature;
+
+    // 个人主页头图状态文案。
+    @Column(name = "profile_cover_text", length = 160)
+    private String profileCoverText;
+
+    // 个人主页扩展信息。
+    @Column(name = "profile_age", length = 20)
+    private String profileAge;
+
+    @Column(name = "profile_occupation", length = 80)
+    private String profileOccupation;
+
+    @Column(name = "profile_phone", length = 40)
+    private String profilePhone;
+
+    @Column(name = "profile_qq", length = 40)
+    private String profileQq;
+
     // 账号状态：1 正常，0 禁用。
     @Column(nullable = false)
     private Integer status = 1;
@@ -157,6 +178,54 @@ public class User {
 
     public void setProfileBackground(String profileBackground) {
         this.profileBackground = profileBackground;
+    }
+
+    public String getProfileSignature() {
+        return profileSignature;
+    }
+
+    public void setProfileSignature(String profileSignature) {
+        this.profileSignature = profileSignature;
+    }
+
+    public String getProfileCoverText() {
+        return profileCoverText;
+    }
+
+    public void setProfileCoverText(String profileCoverText) {
+        this.profileCoverText = profileCoverText;
+    }
+
+    public String getProfileAge() {
+        return profileAge;
+    }
+
+    public void setProfileAge(String profileAge) {
+        this.profileAge = profileAge;
+    }
+
+    public String getProfileOccupation() {
+        return profileOccupation;
+    }
+
+    public void setProfileOccupation(String profileOccupation) {
+        this.profileOccupation = profileOccupation;
+    }
+
+    public String getProfilePhone() {
+        return profilePhone;
+    }
+
+    public void setProfilePhone(String profilePhone) {
+        this.profilePhone = profilePhone;
+    }
+
+    public String getProfileQq() {
+        return profileQq;
+    }
+
+    public void setProfileQq(String profileQq) {
+        this.profileQq = profileQq;
     }
 
     public Integer getStatus() {

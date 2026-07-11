@@ -13,6 +13,8 @@ import java.util.Optional;
  */
 public interface QuestionRepository extends JpaRepository<Question, Long>, JpaSpecificationExecutor<Question> {
 
+    long countByDeletedFalse();
+
     Optional<Question> findByIdAndCreatedBy(Long id, Long createdBy);
 
     List<Question> findAllByIdInAndCreatedBy(Collection<Long> ids, Long createdBy);

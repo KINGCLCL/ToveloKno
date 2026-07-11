@@ -147,6 +147,12 @@ public class UserService {
         user.setBio(normalizeText(request.getBio()));
         user.setAvatar(normalizeText(request.getAvatar()));
         user.setProfileBackground(normalizeText(request.getProfileBackground()));
+        user.setProfileSignature(normalizeText(request.getProfileSignature()));
+        user.setProfileCoverText(normalizeText(request.getProfileCoverText()));
+        user.setProfileAge(normalizeText(request.getProfileAge()));
+        user.setProfileOccupation(normalizeText(request.getProfileOccupation()));
+        user.setProfilePhone(normalizeText(request.getProfilePhone()));
+        user.setProfileQq(normalizeText(request.getProfileQq()));
 
         operationLogService.record(currentUser.getId(), "USER_UPDATE_PROFILE", "修改用户资料：" + user.getUsername());
         return toResponse(userRepository.save(user));
@@ -240,6 +246,12 @@ public class UserService {
                 user.getBio(),
                 user.getAvatar(),
                 user.getProfileBackground(),
+                user.getProfileSignature(),
+                user.getProfileCoverText(),
+                user.getProfileAge(),
+                user.getProfileOccupation(),
+                user.getProfilePhone(),
+                user.getProfileQq(),
                 user.getStatus(),
                 roles,
                 user.getCreatedAt()

@@ -1,0 +1,123 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="980" viewBox="0 0 1500 980">
+  <defs>
+    <marker id="arrow" markerWidth="14" markerHeight="14" refX="12" refY="5" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L12,5 L0,10 Z" fill="#202124"/>
+    </marker>
+    <marker id="softArrow" markerWidth="14" markerHeight="14" refX="12" refY="5" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L12,5 L0,10 Z" fill="#5f6c7b"/>
+    </marker>
+    <style>
+      .title { font: 700 36px "SimSun", "Microsoft YaHei", sans-serif; fill: #111827; }
+      .sub { font: 20px "SimSun", "Microsoft YaHei", sans-serif; fill: #4b5563; }
+      .actor { font: 700 26px "SimSun", "Microsoft YaHei", sans-serif; fill: #111827; }
+      .actorSub { font: 18px "SimSun", "Microsoft YaHei", sans-serif; fill: #4b5563; }
+      .case { font: 21px "SimSun", "Microsoft YaHei", sans-serif; fill: #111827; }
+      .small { font: 17px "SimSun", "Microsoft YaHei", sans-serif; fill: #4b5563; }
+      .note { font: 18px "SimSun", "Microsoft YaHei", sans-serif; fill: #374151; }
+      .panel { fill: #fbfdff; stroke: #1f2937; stroke-width: 2.5; }
+      .caseOval { fill: #f7fbff; stroke: #1f2937; stroke-width: 2.2; }
+      .caseOvalAlt { fill: #fff7ed; stroke: #1f2937; stroke-width: 2.2; }
+      .caseOvalGreen { fill: #effcf6; stroke: #1f2937; stroke-width: 2.2; }
+      .caseOvalPink { fill: #fff4fa; stroke: #1f2937; stroke-width: 2.2; }
+      .line { fill: none; stroke: #202124; stroke-width: 2.4; marker-end: url(#arrow); }
+      .relation { fill: none; stroke: #5f6c7b; stroke-width: 2; stroke-dasharray: 8 7; marker-end: url(#softArrow); }
+    </style>
+  </defs>
+
+  <rect width="1500" height="980" fill="#ffffff"/>
+  <text x="54" y="66" class="title">ToveloKno 目标用户用例图</text>
+  <text x="54" y="104" class="sub">面向学生的智能学习资源管理与复习平台：资料导入、题库练习、错题复盘、计划跟踪、社区分享与 AI 辅助。</text>
+
+  <rect x="285" y="145" width="925" height="720" rx="10" class="panel"/>
+  <text x="665" y="185" class="actor">系统边界：ToveloKno</text>
+
+  <g transform="translate(72 230)">
+    <circle cx="78" cy="25" r="23" fill="#eef5ff" stroke="#111827" stroke-width="2.5"/>
+    <path d="M78 48 L78 118 M34 76 L122 76 M78 118 L38 176 M78 118 L118 176" stroke="#111827" stroke-width="4" stroke-linecap="round" fill="none"/>
+    <text x="78" y="222" text-anchor="middle" class="actor">普通用户（学生）</text>
+    <text x="78" y="252" text-anchor="middle" class="actorSub">高频使用：每日 / 每周</text>
+  </g>
+
+  <g transform="translate(1282 250)">
+    <circle cx="72" cy="25" r="23" fill="#fff7ed" stroke="#111827" stroke-width="2.5"/>
+    <path d="M72 48 L72 118 M28 76 L116 76 M72 118 L32 176 M72 118 L112 176" stroke="#111827" stroke-width="4" stroke-linecap="round" fill="none"/>
+    <text x="72" y="222" text-anchor="middle" class="actor">管理员</text>
+    <text x="72" y="252" text-anchor="middle" class="actorSub">低频使用：维护 / 检查</text>
+  </g>
+
+  <g transform="translate(1268 710)">
+    <rect x="0" y="0" width="170" height="74" rx="10" fill="#f4f7fb" stroke="#111827" stroke-width="2.2"/>
+    <text x="85" y="31" text-anchor="middle" class="actor">外部 AI 服务</text>
+    <text x="85" y="57" text-anchor="middle" class="actorSub">按需调用</text>
+  </g>
+
+  <g>
+    <ellipse cx="505" cy="255" rx="140" ry="39" class="caseOval"/>
+    <text x="505" y="262" text-anchor="middle" class="case">注册 / 登录 / 个人资料</text>
+
+    <ellipse cx="782" cy="255" rx="145" ry="39" class="caseOval"/>
+    <text x="782" y="262" text-anchor="middle" class="case">学习资料上传与管理</text>
+
+    <ellipse cx="1042" cy="255" rx="120" ry="39" class="caseOvalGreen"/>
+    <text x="1042" y="262" text-anchor="middle" class="case">分类与标签</text>
+
+    <ellipse cx="505" cy="375" rx="130" ry="39" class="caseOvalGreen"/>
+    <text x="505" y="382" text-anchor="middle" class="case">整理知识卡片</text>
+
+    <ellipse cx="782" cy="375" rx="140" ry="39" class="caseOvalPink"/>
+    <text x="782" y="382" text-anchor="middle" class="case">题库练习 / 自动判题</text>
+
+    <ellipse cx="1042" cy="375" rx="122" ry="39" class="caseOvalPink"/>
+    <text x="1042" y="382" text-anchor="middle" class="case">错题本复盘</text>
+
+    <ellipse cx="505" cy="495" rx="132" ry="39" class="caseOvalAlt"/>
+    <text x="505" y="502" text-anchor="middle" class="case">学习计划跟踪</text>
+
+    <ellipse cx="782" cy="495" rx="136" ry="39" class="caseOvalAlt"/>
+    <text x="782" y="502" text-anchor="middle" class="case">学习统计与推荐</text>
+
+    <ellipse cx="1042" cy="495" rx="126" ry="39" class="caseOvalGreen"/>
+    <text x="1042" y="502" text-anchor="middle" class="case">资源分享 / 收藏</text>
+
+    <ellipse cx="505" cy="615" rx="126" ry="39" class="caseOvalGreen"/>
+    <text x="505" y="622" text-anchor="middle" class="case">论坛发帖 / 回复</text>
+
+    <ellipse cx="782" cy="615" rx="152" ry="39" class="caseOvalPink"/>
+    <text x="782" y="622" text-anchor="middle" class="case">AI 辅助分析与生成建议</text>
+
+    <ellipse cx="1042" cy="615" rx="124" ry="39" class="caseOvalAlt"/>
+    <text x="1042" y="622" text-anchor="middle" class="case">用户与数据管理</text>
+
+    <ellipse cx="782" cy="735" rx="142" ry="39" class="caseOvalAlt"/>
+    <text x="782" y="742" text-anchor="middle" class="case">操作日志 / 系统统计</text>
+  </g>
+
+  <path d="M210 365 C285 290, 345 270, 365 255" class="line"/>
+  <path d="M218 372 C345 325, 555 288, 642 260" class="line"/>
+  <path d="M220 383 C345 370, 370 370, 375 374" class="line"/>
+  <path d="M220 395 C410 380, 600 378, 642 376" class="line"/>
+  <path d="M217 410 C430 410, 865 385, 920 378" class="line"/>
+  <path d="M205 428 C315 480, 360 493, 373 494" class="line"/>
+  <path d="M202 445 C385 525, 620 508, 647 499" class="line"/>
+  <path d="M198 465 C365 590, 370 612, 379 615" class="line"/>
+  <path d="M208 454 C510 605, 600 615, 630 615" class="line"/>
+  <path d="M212 432 C555 515, 900 500, 916 497" class="line"/>
+
+  <path d="M1282 392 C1215 330, 1185 290, 1163 262" class="line"/>
+  <path d="M1280 407 C1195 462, 1185 490, 1168 497" class="line"/>
+  <path d="M1282 430 C1200 555, 1185 600, 1164 615" class="line"/>
+  <path d="M1275 450 C1100 720, 960 735, 925 735" class="line"/>
+
+  <path d="M934 615 C1070 638, 1195 680, 1268 724" class="relation"/>
+  <path d="M781 294 C737 320, 585 350, 585 365" class="relation"/>
+  <path d="M782 294 C783 320, 783 340, 783 336" class="relation"/>
+  <path d="M920 375 C885 420, 845 450, 825 462" class="relation"/>
+  <path d="M1042 414 C990 455, 925 485, 915 492" class="relation"/>
+  <path d="M637 495 C675 496, 710 496, 646 496" class="relation"/>
+
+  <g>
+    <rect x="54" y="820" width="1180" height="92" rx="8" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.6"/>
+    <text x="78" y="852" class="note">职责与分工说明：</text>
+    <text x="78" y="882" class="small">普通用户负责个人学习闭环，是核心高频角色；管理员负责基础数据、用户、日志和运行维护；AI 服务只提供辅助分析，不替代用户决策。</text>
+  </g>
+</svg>

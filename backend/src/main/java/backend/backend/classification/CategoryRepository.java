@@ -9,6 +9,8 @@ public interface CategoryRepository extends JpaRepository<Category, Long> {
 
     List<Category> findAllByCreatedByOrderBySortOrderAscNameAsc(Long createdBy);
 
+    List<Category> findAllByCreatedByIsNullOrderBySortOrderAscNameAsc();
+
     Optional<Category> findByIdAndCreatedBy(Long id, Long createdBy);
 
     boolean existsByCreatedByAndParentIdAndNameIgnoreCase(Long createdBy, Long parentId, String name);

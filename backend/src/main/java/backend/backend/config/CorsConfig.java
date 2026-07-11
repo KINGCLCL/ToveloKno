@@ -29,6 +29,7 @@ public class CorsConfig implements WebMvcConfigurer {
     private final Path profileUploadDir;
     private final Path resourceUploadDir;
     private final Path bannerUploadDir;
+    private final Path sharedResourceUploadDir;
 
     public CorsConfig(
             AuthInterceptor authInterceptor,
@@ -36,7 +37,8 @@ public class CorsConfig implements WebMvcConfigurer {
             @Value("${app.cors.allowed-origins:http://localhost:5173,http://127.0.0.1:5173}") String allowedOrigins,
             @Value("${app.upload.profile-dir:uploads/profile}") String profileUploadDir,
             @Value("${app.upload.resource-dir:uploads/resources}") String resourceUploadDir,
-            @Value("${app.upload.banner-dir:uploads/banners}") String bannerUploadDir) {
+            @Value("${app.upload.banner-dir:uploads/banners}") String bannerUploadDir,
+            @Value("${app.upload.shared-resource-dir:uploads/shared-resources}") String sharedResourceUploadDir) {
         this.authInterceptor = authInterceptor;
         this.currentUserArgumentResolver = currentUserArgumentResolver;
         this.allowedOrigins = Arrays.stream(allowedOrigins.split(","))
@@ -46,6 +48,7 @@ public class CorsConfig implements WebMvcConfigurer {
         this.profileUploadDir = Path.of(profileUploadDir).toAbsolutePath().normalize();
         this.resourceUploadDir = Path.of(resourceUploadDir).toAbsolutePath().normalize();
         this.bannerUploadDir = Path.of(bannerUploadDir).toAbsolutePath().normalize();
+        this.sharedResourceUploadDir = Path.of(sharedResourceUploadDir).toAbsolutePath().normalize();
     }
 
     /**
@@ -74,6 +77,8 @@ public class CorsConfig implements WebMvcConfigurer {
                 .addResourceLocations(resourceUploadDir.toUri().toString() + "/");
         registry.addResourceHandler("/uploads/banners/**")
                 .addResourceLocations(bannerUploadDir.toUri().toString() + "/");
+        registry.addResourceHandler("/uploads/shared-resources/**")
+                .addResourceLocations(sharedResourceUploadDir.toUri().toString() + "/");
     }
 
     /**

@@ -5,6 +5,7 @@ import backend.backend.common.BusinessException;
 import backend.backend.question.Question;
 import backend.backend.question.QuestionRepository;
 import backend.backend.question.QuestionStatus;
+import backend.backend.repository.UserRepository;
 import backend.backend.service.OperationLogService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,23 +32,31 @@ public class ClassificationService {
     private final CategoryRepository categoryRepository;
     private final TagRepository tagRepository;
     private final QuestionRepository questionRepository;
+    private final UserRepository userRepository;
     private final OperationLogService operationLogService;
 
     public ClassificationService(
             CategoryRepository categoryRepository,
             TagRepository tagRepository,
             QuestionRepository questionRepository,
+            UserRepository userRepository,
             OperationLogService operationLogService) {
         this.categoryRepository = categoryRepository;
         this.tagRepository = tagRepository;
         this.questionRepository = questionRepository;
+        this.userRepository = userRepository;
         this.operationLogService = operationLogService;
     }
 
     @Transactional(readOnly = true)
     public ClassificationOverviewResponse getOverview(AuthenticatedUser currentUser) {
-        Long userId = currentUser.getId();
+        Long userId = resolveCategoryOwnerId(currentUser);
         List<Category> categories = categoryRepository.findAllByCreatedByOrderBySortOrderAscNameAsc(userId);
+        List<Category> legacyCategories = categoryRepository.findAllByCreatedByIsNullOrderBySortOrderAscNameAsc();
+        if (!legacyCategories.isEmpty()) {
+            categories = new ArrayList<>(categories);
+            categories.addAll(legacyCategories);
+        }
         List<Tag> tags = tagRepository.findAllByCreatedByOrderByNameAsc(userId);
         Map<Long, Long> directQuestionCounts = categoryQuestionCounts(userId);
         Map<Long, Category> categoriesById = new LinkedHashMap<>();
@@ -407,6 +416,20 @@ public class ClassificationService {
         questionRepository.countQuestionsByCategory(userId).forEach(row ->
                 result.put(((Number) row[0]).longValue(), ((Number) row[1]).longValue()));
         return result;
+    }
+
+    private Long resolveCategoryOwnerId(AuthenticatedUser currentUser) {
+        Long userId = currentUser.getId();
+        if (!categoryRepository.findAllByCreatedByOrderBySortOrderAscNameAsc(userId).isEmpty()) {
+            return userId;
+        }
+        if (currentUser.hasRole("ADMIN")) {
+            return userRepository.findByUsername("ADMIN")
+                    .map(backend.backend.entity.User::getId)
+                    .filter(adminId -> !categoryRepository.findAllByCreatedByOrderBySortOrderAscNameAsc(adminId).isEmpty())
+                    .orElse(userId);
+        }
+        return userId;
     }
 
     private String normalizeRequired(String value) {

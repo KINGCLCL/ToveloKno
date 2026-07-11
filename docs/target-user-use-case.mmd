@@ -1,0 +1,48 @@
+flowchart LR
+  student([普通用户（学生）])
+  admin([管理员])
+  ai([外部 AI 服务])
+
+  subgraph system[ToveloKno 智能学习资源管理平台]
+    auth((注册 / 登录 / 维护个人资料))
+    resources((上传、检索与管理学习资料))
+    classify((维护个人分类与标签))
+    cards((整理知识卡片))
+    practice((题库练习与自动判题))
+    wrong((错题本复盘))
+    plan((制定与跟踪学习计划))
+    stats((查看学习统计与推荐))
+    share((资源分享与收藏))
+    forum((论坛发帖、回复与互动))
+    aiHelp((AI 辅助分析资料 / 生成摘要与题目建议))
+    userManage((用户与基础数据管理))
+    audit((查看操作日志与系统统计))
+  end
+
+
+
+  student --> auth
+  student --> resources
+  student --> classify
+  student --> cards
+  student --> practice
+  student --> wrong
+  student --> plan
+  student --> stats
+  student --> share
+  student --> forum
+  student --> aiHelp
+
+  admin --> userManage
+  admin --> classify
+  admin --> resources
+  admin --> practice
+  admin --> audit
+
+  aiHelp --> ai
+
+  resources -. 生成题目 / 截图卡片 .-> cards
+  resources -. 抽取练习题 .-> practice
+  practice -. 答错自动加入 .-> wrong
+  wrong -. 复盘任务 .-> plan
+  plan -. 完成情况 .-> stats

@@ -141,7 +141,7 @@ export function uploadLearningResource(file, data = {}) {
   if (data.description) formData.append('description', data.description)
   return api.post('/resources', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
-    timeout: 120000,
+    timeout: 600000,
   })
 }
 
@@ -169,8 +169,24 @@ export function extractQuestionsFromResource(resourceId, data = {}) {
   })
 }
 
+export function fetchClassificationOverview() {
+  return api.get('/classifications/overview')
+}
+
 export function getAiAssistantStatus() {
   return api.get('/ai-assistant/status')
+}
+
+export function getAdminOverview() {
+  return api.get('/admin/overview')
+}
+
+export function listAdminUsers() {
+  return api.get('/admin/users')
+}
+
+export function updateAdminUserStatus(userId, status) {
+  return api.put(`/admin/users/${userId}/status`, { status })
 }
 
 export function analyzeWithAiAssistant(data) {
@@ -193,6 +209,52 @@ export function toggleLearningResourceFavorite(resourceId) {
 
 export function deleteLearningResource(resourceId) {
   return api.delete(`/resources/${resourceId}`)
+}
+
+export function listSharedResources() {
+  return api.get('/shared-resources')
+}
+
+export function createSharedResource(data, file) {
+  const formData = new FormData()
+  formData.append('data', new Blob([JSON.stringify(data)], { type: 'application/json' }))
+  if (file) formData.append('file', file)
+  return api.post('/shared-resources', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 600000,
+  })
+}
+
+export function markSharedResourceViewed(resourceId) {
+  return api.put(`/shared-resources/${resourceId}/view`)
+}
+
+export function toggleSharedResourceFavorite(resourceId) {
+  return api.put(`/shared-resources/${resourceId}/favorite`)
+}
+
+export function listForumThreads() {
+  return api.get('/forum/threads')
+}
+
+export function createForumThread(data) {
+  return api.post('/forum/threads', data)
+}
+
+export function markForumThreadViewed(threadId) {
+  return api.put(`/forum/threads/${threadId}/view`)
+}
+
+export function createForumReply(threadId, data) {
+  return api.post(`/forum/threads/${threadId}/replies`, data)
+}
+
+export function toggleForumThreadFavorite(threadId) {
+  return api.put(`/forum/threads/${threadId}/favorite`)
+}
+
+export function toggleForumThreadLike(threadId) {
+  return api.put(`/forum/threads/${threadId}/like`)
 }
 
 // 兼容按 userId 查询资料的接口，普通用户只能查自己。

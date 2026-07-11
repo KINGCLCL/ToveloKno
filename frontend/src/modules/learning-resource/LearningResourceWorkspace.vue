@@ -93,10 +93,8 @@
               <button type="button" title="橡皮擦" :class="{ active: tool === 'eraser' }" @click="tool = 'eraser'"><Eraser :size="17" /></button>
               <button type="button" title="撤销" @click="undoAnnotation"><Undo2 :size="17" /></button>
               <button type="button" title="保存标注" @click="saveAnnotations"><Save :size="17" /></button>
-              <button type="button" title="摘录入题库" :disabled="!selectedResource" @click="openExcerptModal"><FileQuestion :size="17" /></button>
-              <button type="button" title="保存图片题" :disabled="!canSaveImageQuestion" @click="saveImageQuestion">
-                <Sparkles :size="17" />
-              </button>
+              <button type="button" title="截图摘录入题库" :disabled="!canCaptureQuestion" :class="{ active: captureMode && captureTarget === 'question' }" @click="beginCaptureQuestion"><FileQuestion :size="17" /></button>
+              <button type="button" title="截图加入知识卡片" :disabled="!canCaptureQuestion" :class="{ active: captureMode && captureTarget === 'card' }" @click="beginCaptureCard"><StickyNote :size="17" /></button>
             </div>
             <div class="reader-tool-group">
               <button type="button" title="上一页" :disabled="currentPage <= 1" @click="changePage(-1)"><ChevronLeft :size="18" /></button>
@@ -126,16 +124,17 @@
           <div v-else-if="!selectedResource" class="resource-empty reader-empty">选择或上传资料后开始阅读。</div>
 
           <div v-else class="reader-stage" :class="`mode-${tool}`">
+            <p v-if="captureMode" class="capture-hint">{{ captureHintText }}</p>
             <div
               ref="documentSurface"
               class="document-surface"
-              :class="{ 'pdf-surface': previewMode === 'pdf' }"
+              :class="{ 'pdf-surface': previewMode === 'pdf', capturing: captureMode }"
               :style="surfaceStyle"
-              @pointerdown="startAnnotation"
-              @pointermove="moveAnnotation"
-              @pointerup="finishAnnotation"
-              @pointercancel="finishAnnotation"
-              @pointerleave="finishAnnotation"
+              @pointerdown="handleSurfacePointerDown"
+              @pointermove="handleSurfacePointerMove"
+              @pointerup="handleSurfacePointerUp"
+              @pointercancel="handleSurfacePointerCancel"
+              @pointerleave="handleSurfacePointerLeave"
             >
               <canvas v-show="previewMode === 'pdf'" ref="pdfCanvas" class="pdf-canvas"></canvas>
               <div v-if="previewError" class="preview-error">
@@ -151,6 +150,30 @@
                 alt="学习资料"
                 @load="updateSurfaceSize"
               />
+              <video
+                v-if="previewMode === 'video'"
+                class="media-page video-page"
+                :src="assetUrl(selectedResource.fileUrl)"
+                controls
+                preload="metadata"
+                @pointerdown.stop
+                @pointermove.stop
+                @pointerup.stop
+                @click.stop
+                @loadedmetadata="updateSurfaceSize"
+              ></video>
+              <audio
+                v-if="previewMode === 'audio'"
+                class="media-page audio-page"
+                :src="assetUrl(selectedResource.fileUrl)"
+                controls
+                preload="metadata"
+                @pointerdown.stop
+                @pointermove.stop
+                @pointerup.stop
+                @click.stop
+                @loadedmetadata="updateSurfaceSize"
+              ></audio>
               <div v-if="previewMode === 'unsupported'" class="unsupported-page">
                 <span>{{ iconFor(selectedResource) }}</span>
                 <h3>该文件已归档</h3>
@@ -158,7 +181,7 @@
                 <a :href="assetUrl(selectedResource.fileUrl)" target="_blank" rel="noreferrer">打开文件</a>
               </div>
 
-              <svg class="annotation-layer" :viewBox="`0 0 ${surfaceSize.width} ${surfaceSize.height}`" preserveAspectRatio="none">
+              <svg v-if="canAnnotatePreview" class="annotation-layer" :viewBox="`0 0 ${surfaceSize.width} ${surfaceSize.height}`" preserveAspectRatio="none">
                 <template v-for="annotation in visibleAnnotations" :key="annotation.id">
                   <polyline
                     v-if="annotation.type === 'pen'"
@@ -200,7 +223,7 @@
                   rx="2"
                 />
               </svg>
-              <div class="annotation-note-layer">
+              <div v-if="canAnnotatePreview" class="annotation-note-layer">
                 <article
                   v-for="annotation in visibleNoteAnnotations"
                   :key="annotation.id"
@@ -222,12 +245,15 @@
                   <button type="button" title="删除便签" @click="removeAnnotation(annotation.id)">×</button>
                 </article>
               </div>
+              <div v-if="captureMode" class="capture-layer" aria-hidden="true">
+                <div v-if="captureDraft" class="capture-selection" :style="captureSelectionStyle"></div>
+              </div>
             </div>
           </div>
         </section>
 
         <aside class="resource-inspector">
-          <section class="progress-panel">
+          <section class="resource-progress-panel">
             <span class="resource-kicker">PROGRESS</span>
             <div class="progress-orbit" :style="progressRingStyle">
               <div>
@@ -259,29 +285,20 @@
               <CheckCircle2 :size="18" />
               <span>已学习到此</span>
             </button>
-            <button class="resource-secondary" type="button" :disabled="!selectedResource" @click="openExcerptModal">
+            <button class="resource-secondary" type="button" :disabled="!canCaptureQuestion" @click="beginCaptureQuestion">
               <FileQuestion :size="18" />
-              <span>摘录入题库</span>
+              <span>截图摘录入题库</span>
             </button>
-            <button class="resource-secondary" type="button" :disabled="!canSaveImageQuestion" @click="saveImageQuestion">
-              <Sparkles :size="18" />
-              <span>{{ savingImageQuestion ? '保存中...' : '保存图片题' }}</span>
+            <button class="resource-secondary card-action" type="button" :disabled="!canCaptureQuestion" @click="beginCaptureCard">
+              <StickyNote :size="18" />
+              <span>截图加入知识卡片</span>
             </button>
             <p v-if="extractError" class="resource-form-error">{{ extractError }}</p>
             <div v-if="extractResult" class="ai-extract-result">
               <strong>{{ extractResult.createdCount ? `已入库 ${extractResult.createdCount} 题` : '图片题已保存' }}</strong>
-              <span>{{ extractResult.message || '已作为草稿题加入题库，可到题库补充答案。' }}</span>
+              <span>{{ extractResult.message || '截图题已保存到题库。' }}</span>
               <p v-for="warning in extractResult.warnings || []" :key="warning">{{ warning }}</p>
             </div>
-          </section>
-
-          <section v-if="extractResult?.previews?.length" class="ai-extract-preview">
-            <span class="resource-kicker">SAVED QUESTION</span>
-            <article v-for="question in extractResult.previews.slice(0, 3)" :key="question.questionId || question.content">
-              <strong>{{ questionTypeLabel(question.questionType) }}</strong>
-              <p>{{ question.content }}</p>
-              <small>答案：{{ question.correctAnswer || '待补充' }}</small>
-            </article>
           </section>
 
           <section>
@@ -310,60 +327,16 @@
       <section class="resource-modal" role="dialog" aria-modal="true" aria-label="摘录入题库">
         <header>
           <div>
-            <span class="resource-kicker">RESOURCE TO QUESTION</span>
+            <span class="resource-kicker">SCREENSHOT TO QUESTION</span>
             <h3>摘录入题库</h3>
             <p>{{ selectedResource?.name }} · 第 {{ excerptForm.sourcePage || currentPage }} 页</p>
           </div>
           <button type="button" aria-label="关闭" @click="closeExcerptModal">×</button>
         </header>
         <form class="resource-excerpt-form" @submit.prevent="submitExcerptQuestion">
-          <label>
-            <span>资料摘录</span>
-            <textarea v-model.trim="excerptForm.sourceExcerpt" rows="4" maxlength="4000" placeholder="粘贴或整理从资料中截取的原文" />
-          </label>
-          <label>
-            <span>题目内容 *</span>
-            <textarea v-model.trim="excerptForm.content" required rows="4" maxlength="10000" placeholder="根据摘录整理题干" />
-          </label>
-          <div class="resource-form-grid">
-            <label>
-              <span>题型</span>
-              <select v-model="excerptForm.questionType">
-                <option value="SHORT_ANSWER">简答题</option>
-                <option value="SINGLE_CHOICE">单选题</option>
-                <option value="MULTIPLE_CHOICE">多选题</option>
-                <option value="TRUE_FALSE">判断题</option>
-                <option value="FILL_BLANK">填空题</option>
-              </select>
-            </label>
-            <label>
-              <span>难度</span>
-              <select v-model.number="excerptForm.difficulty">
-                <option v-for="level in 5" :key="level" :value="level">{{ level }} 星</option>
-              </select>
-            </label>
-            <label>
-              <span>页码</span>
-              <input v-model.number="excerptForm.sourcePage" type="number" min="1" />
-            </label>
-            <label>
-              <span>状态</span>
-              <select v-model="excerptForm.status">
-                <option value="DRAFT">草稿</option>
-                <option value="PUBLISHED">已发布</option>
-              </select>
-            </label>
-          </div>
-          <div v-if="excerptIsChoice" class="resource-option-editor">
-            <div>
-              <span>选项</span>
-              <button type="button" :disabled="excerptForm.options.length >= 8" @click="addExcerptOption">添加选项</button>
-            </div>
-            <label v-for="(option, index) in excerptForm.options" :key="index">
-              <span>{{ String.fromCharCode(65 + index) }}</span>
-              <input v-model.trim="excerptForm.options[index]" required maxlength="500" :placeholder="`选项 ${String.fromCharCode(65 + index)}`" />
-              <button v-if="excerptForm.options.length > 2" type="button" aria-label="删除选项" @click="removeExcerptOption(index)">×</button>
-            </label>
+          <div class="capture-preview">
+            <img v-if="excerptForm.imageDataUrl" :src="excerptForm.imageDataUrl" alt="截取的题目图片" />
+            <span v-else>先在文档上框选题目区域</span>
           </div>
           <div class="resource-form-grid">
             <label>
@@ -371,22 +344,11 @@
               <input v-model.trim="excerptForm.correctAnswer" required maxlength="1000" placeholder="例如：A，或简答要点" />
             </label>
             <label>
-              <span>知识点</span>
-              <input v-model.trim="excerptForm.knowledgePoint" maxlength="80" placeholder="例如：事务管理" />
-            </label>
-          </div>
-          <label>
-            <span>答案解析</span>
-            <textarea v-model.trim="excerptForm.analysis" rows="3" maxlength="10000" placeholder="补充解题思路或资料依据" />
-          </label>
-          <div class="resource-plan-row">
-            <label>
-              <input v-model="excerptForm.createPlan" type="checkbox" />
-              <span>同时加入学习计划</span>
-            </label>
-            <label>
-              <span>计划日期</span>
-              <input v-model="excerptForm.planDate" type="date" :disabled="!excerptForm.createPlan" />
+              <span>归档文件夹</span>
+              <select v-model="excerptForm.categoryId">
+                <option :value="null">未分类</option>
+                <option v-for="category in categoryOptions" :key="category.id" :value="category.id">{{ category.name }}</option>
+              </select>
             </label>
           </div>
           <p v-if="excerptError" class="resource-form-error">{{ excerptError }}</p>
@@ -394,7 +356,48 @@
             <button type="button" @click="closeExcerptModal">取消</button>
             <button class="resource-primary inline" type="submit" :disabled="excerptSaving">
               <FileQuestion :size="18" />
-              <span>{{ excerptSaving ? '保存中...' : '加入题库' }}</span>
+              <span>{{ excerptSaving ? '保存中...' : '保存截图题' }}</span>
+            </button>
+          </footer>
+        </form>
+      </section>
+    </div>
+
+    <div v-if="cardModalOpen" class="resource-modal-backdrop" @click.self="closeCardModal">
+      <section class="resource-modal card-capture-modal" role="dialog" aria-modal="true" aria-label="截图加入知识卡片">
+        <header>
+          <div>
+            <span class="resource-kicker">SCREENSHOT TO CARD</span>
+            <h3>加入知识卡片</h3>
+            <p>{{ selectedResource?.name }} · 第 {{ cardForm.sourcePage || currentPage }} 页</p>
+          </div>
+          <button type="button" aria-label="关闭" @click="closeCardModal">×</button>
+        </header>
+        <form class="resource-excerpt-form" @submit.prevent="submitCaptureCard">
+          <div class="capture-preview card-preview">
+            <img v-if="cardForm.imageDataUrl" :src="cardForm.imageDataUrl" alt="截取的知识卡片图片" />
+            <span v-else>先在资料里框选知识点区域</span>
+          </div>
+          <div class="resource-form-grid">
+            <label>
+              <span>卡片标题 *</span>
+              <input v-model.trim="cardForm.title" required maxlength="80" placeholder="例如：极限夹逼准则" />
+            </label>
+            <label>
+              <span>标签</span>
+              <input v-model.trim="cardForm.tag" maxlength="40" placeholder="例如：高数 / 错题 / 公式" />
+            </label>
+          </div>
+          <label>
+            <span>卡片内容 *</span>
+            <textarea v-model.trim="cardForm.content" required maxlength="1600" rows="5" placeholder="写下定义、公式、推导步骤或容易忘的提醒"></textarea>
+          </label>
+          <p v-if="cardError" class="resource-form-error">{{ cardError }}</p>
+          <footer>
+            <button type="button" @click="closeCardModal">取消</button>
+            <button class="resource-primary inline" type="submit">
+              <StickyNote :size="18" />
+              <span>保存到知识卡片</span>
             </button>
           </footer>
         </form>
@@ -407,6 +410,7 @@
 
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, shallowRef } from 'vue'
+import html2canvas from 'html2canvas'
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs'
 import pdfWorkerUrl from 'pdfjs-dist/legacy/build/pdf.worker.mjs?url'
 import mammoth from 'mammoth/mammoth.browser'
@@ -429,7 +433,6 @@ import {
   RefreshCw,
   Save,
   Search,
-  Sparkles,
   Star,
   StickyNote,
   Trash2,
@@ -442,9 +445,8 @@ import {
 } from '@lucide/vue'
 import {
   createImageQuestionFromResource,
-  createStudyPlan,
-  createQuestionFromResource,
   deleteLearningResource,
+  fetchClassificationOverview,
   listLearningResources,
   resolveAssetUrl,
   toggleLearningResourceFavorite,
@@ -455,11 +457,13 @@ import {
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl
 
-const emit = defineEmits(['back-home'])
+const emit = defineEmits(['back-home', 'create-card'])
 
 const loading = ref(false)
 const uploading = ref(false)
 const resources = ref([])
+const resourceTypeCounts = reactive({ total: 0, 文档: 0, 图片: 0, 视频: 0, 音频: 0 })
+const categoryOptions = ref([])
 const selectedResource = ref(null)
 const readerFullscreen = ref(false)
 const filters = reactive({ keyword: '', type: '' })
@@ -476,6 +480,9 @@ const annotations = ref([])
 const draftAnnotation = ref(null)
 const annotationSaveTimer = ref(null)
 const annotationSaving = ref(false)
+const captureMode = ref(false)
+const captureTarget = ref('question')
+const captureDraft = ref(null)
 const pdfDocument = shallowRef(null)
 const pdfCanvas = ref(null)
 const documentSurface = ref(null)
@@ -487,35 +494,33 @@ const sessionMinutes = ref(0)
 const excerptModalOpen = ref(false)
 const excerptSaving = ref(false)
 const excerptError = ref('')
-const savingImageQuestion = ref(false)
 const extractError = ref('')
 const extractResult = ref(null)
 const resourceToast = ref('')
 const excerptForm = reactive({
   content: '',
-  questionType: 'SHORT_ANSWER',
-  options: ['', ''],
   correctAnswer: '',
-  analysis: '',
-  difficulty: 3,
-  subject: '',
-  knowledgePoint: '',
-  status: 'DRAFT',
   categoryId: null,
   sourcePage: 1,
-  sourceExcerpt: '',
-  createPlan: true,
-  planDate: new Date().toISOString().slice(0, 10),
+  imageDataUrl: '',
+})
+const cardModalOpen = ref(false)
+const cardError = ref('')
+const cardForm = reactive({
+  title: '',
+  tag: '',
+  content: '',
+  sourcePage: 1,
+  imageDataUrl: '',
 })
 
 const folders = computed(() => {
-  const all = resources.value.length
   return [
-    { type: '', label: '未归档笔记', icon: FolderOpen, count: all },
-    { type: '文档', label: '文档资料', icon: FileText, count: countType('文档') },
-    { type: '图片', label: '图像素材', icon: Image, count: countType('图片') },
-    { type: '视频', label: '课程视频', icon: Video, count: countType('视频') },
-    { type: '音频', label: '音频资料', icon: Volume2, count: countType('音频') },
+    { type: '', label: '未归档笔记', icon: FolderOpen, count: resourceTypeCounts.total },
+    { type: '文档', label: '文档资料', icon: FileText, count: resourceTypeCounts.文档 },
+    { type: '图片', label: '图像素材', icon: Image, count: resourceTypeCounts.图片 },
+    { type: '视频', label: '课程视频', icon: Video, count: resourceTypeCounts.视频 },
+    { type: '音频', label: '音频资料', icon: Volume2, count: resourceTypeCounts.音频 },
   ]
 })
 
@@ -550,14 +555,31 @@ const visibleNoteAnnotations = computed(() =>
     .filter((item) => Number(item.page || 1) === Number(currentPage.value) && item.type === 'note')
     .map(displayAnnotation),
 )
-const excerptIsChoice = computed(() => ['SINGLE_CHOICE', 'MULTIPLE_CHOICE'].includes(excerptForm.questionType))
-const canSaveImageQuestion = computed(() =>
+const canAnnotatePreview = computed(() => ['pdf', 'docx', 'image'].includes(previewMode.value))
+const canCaptureQuestion = computed(() =>
   Boolean(selectedResource.value)
-    && !savingImageQuestion.value
-    && (previewMode.value === 'pdf' || previewMode.value === 'image'),
+    && !excerptSaving.value
+    && canAnnotatePreview.value,
 )
+const captureHintText = computed(() =>
+  captureTarget.value === 'card'
+    ? '拖拽框选知识点区域，松开后加入知识卡片。'
+    : '拖拽框选题目区域，松开后保存截图题。',
+)
+const captureSelectionStyle = computed(() => {
+  if (!captureDraft.value) return {}
+  const rect = normalizedCaptureRect(captureDraft.value)
+  return {
+    left: `${rect.x}px`,
+    top: `${rect.y}px`,
+    width: `${rect.width}px`,
+    height: `${rect.height}px`,
+  }
+})
 
 onMounted(() => {
+  loadCategories()
+  loadResourceTypeCounts()
   loadResources()
   document.addEventListener('fullscreenchange', handleFullscreenChange)
 })
@@ -605,6 +627,8 @@ async function loadResources() {
     })
     resources.value = response.data?.data?.records || []
     if (!selectedResource.value && resources.value.length) {
+      loading.value = false
+      await nextTick()
       await selectResource(resources.value[0])
     } else if (selectedResource.value) {
       const fresh = resources.value.find((item) => item.id === selectedResource.value.id)
@@ -615,8 +639,55 @@ async function loadResources() {
   }
 }
 
+async function loadResourceTypeCounts() {
+  try {
+    const baseParams = {
+      page: 1,
+      size: 1,
+      keyword: filters.keyword || undefined,
+    }
+    const [all, document, image, video, audio] = await Promise.all([
+      listLearningResources(baseParams),
+      listLearningResources({ ...baseParams, type: '文档' }),
+      listLearningResources({ ...baseParams, type: '图片' }),
+      listLearningResources({ ...baseParams, type: '视频' }),
+      listLearningResources({ ...baseParams, type: '音频' }),
+    ])
+    resourceTypeCounts.total = pageTotal(all)
+    resourceTypeCounts.文档 = pageTotal(document)
+    resourceTypeCounts.图片 = pageTotal(image)
+    resourceTypeCounts.视频 = pageTotal(video)
+    resourceTypeCounts.音频 = pageTotal(audio)
+  } catch {
+    resourceTypeCounts.total = resources.value.length
+    resourceTypeCounts.文档 = countVisibleType('文档')
+    resourceTypeCounts.图片 = countVisibleType('图片')
+    resourceTypeCounts.视频 = countVisibleType('视频')
+    resourceTypeCounts.音频 = countVisibleType('音频')
+  }
+}
+
+function pageTotal(response) {
+  const total = Number(response.data?.data?.total ?? 0)
+  return Number.isFinite(total) ? total : 0
+}
+
+function countVisibleType(type) {
+  return resources.value.filter((item) => item.type === type).length
+}
+
+async function loadCategories() {
+  try {
+    const response = await fetchClassificationOverview()
+    categoryOptions.value = response.data?.data?.categories || []
+  } catch {
+    categoryOptions.value = []
+  }
+}
+
 function reloadFirstPage() {
   selectedResource.value = null
+  loadResourceTypeCounts()
   loadResources()
 }
 
@@ -632,6 +703,7 @@ async function handleUpload(event) {
   try {
     const response = await uploadLearningResource(file, { name: file.name })
     const uploaded = response.data?.data
+    await loadResourceTypeCounts()
     await loadResources()
     const target = resources.value.find((item) => item.id === uploaded?.id) || uploaded
     if (target) await selectResource(target)
@@ -672,6 +744,18 @@ async function renderSelected() {
     await renderDocx()
   } else if (/\.(png|jpg|jpeg|webp|gif)$/.test(filename) || mimeType.startsWith('image/')) {
     previewMode.value = 'image'
+    await nextTick()
+    updateSurfaceSize()
+  } else if (/\.(mp4|webm|ogg|mov|m4v)$/.test(filename) || mimeType.startsWith('video/')) {
+    previewMode.value = 'video'
+    pageCount.value = 1
+    currentPage.value = 1
+    await nextTick()
+    updateSurfaceSize()
+  } else if (/\.(mp3|wav|ogg|m4a|aac|flac)$/.test(filename) || mimeType.startsWith('audio/')) {
+    previewMode.value = 'audio'
+    pageCount.value = 1
+    currentPage.value = 1
     await nextTick()
     updateSurfaceSize()
   } else {
@@ -764,6 +848,7 @@ async function changePage(delta) {
 }
 
 function startAnnotation(event) {
+  if (!canAnnotatePreview.value) return
   if (tool.value === 'pan' || !selectedResource.value) return
   event.preventDefault()
   const point = pointerPagePoint(event)
@@ -795,6 +880,7 @@ function startAnnotation(event) {
 }
 
 function moveAnnotation(event) {
+  if (!canAnnotatePreview.value) return
   if (tool.value === 'eraser' && selectedResource.value) {
     event.preventDefault()
     eraseAt(pointerPagePoint(event))
@@ -1043,24 +1129,258 @@ function toPageLength(pixelLength) {
 }
 
 function openExcerptModal() {
-  if (!selectedResource.value) return
-  const excerpt = selectedText() || latestNoteText() || ''
-  excerptForm.sourcePage = Math.max(1, Number(currentPage.value || 1))
-  excerptForm.sourceExcerpt = excerpt
-  excerptForm.content = excerpt ? `根据资料摘录回答：\n${excerpt}` : ''
-  excerptForm.questionType = 'SHORT_ANSWER'
-  excerptForm.options = ['', '']
-  excerptForm.correctAnswer = ''
-  excerptForm.analysis = ''
-  excerptForm.difficulty = 3
-  excerptForm.subject = selectedResource.value.type || ''
-  excerptForm.knowledgePoint = ''
-  excerptForm.status = 'DRAFT'
-  excerptForm.categoryId = null
-  excerptForm.createPlan = true
-  excerptForm.planDate = new Date().toISOString().slice(0, 10)
-  excerptError.value = ''
-  excerptModalOpen.value = true
+  beginCaptureQuestion()
+}
+
+function beginCaptureQuestion() {
+  if (!canCaptureQuestion.value) return
+  captureMode.value = true
+  captureTarget.value = 'question'
+  captureDraft.value = null
+  tool.value = 'pan'
+  extractError.value = ''
+  extractResult.value = null
+  showToast('拖拽框选题目区域')
+}
+
+function beginCaptureCard() {
+  if (!canCaptureQuestion.value) return
+  captureMode.value = true
+  captureTarget.value = 'card'
+  captureDraft.value = null
+  tool.value = 'pan'
+  extractError.value = ''
+  cardError.value = ''
+  extractResult.value = null
+  showToast('拖拽框选知识点区域')
+}
+
+function stopCaptureQuestion() {
+  captureMode.value = false
+  captureDraft.value = null
+}
+
+function handleSurfacePointerDown(event) {
+  if (captureMode.value) {
+    startCaptureSelection(event)
+    return
+  }
+  startAnnotation(event)
+}
+
+function handleSurfacePointerMove(event) {
+  if (captureMode.value) {
+    moveCaptureSelection(event)
+    return
+  }
+  moveAnnotation(event)
+}
+
+function handleSurfacePointerUp(event) {
+  if (captureMode.value) {
+    finishCaptureSelection(event)
+    return
+  }
+  finishAnnotation()
+}
+
+function handleSurfacePointerCancel() {
+  if (captureMode.value) {
+    captureDraft.value = null
+    return
+  }
+  finishAnnotation()
+}
+
+function handleSurfacePointerLeave(event) {
+  if (captureMode.value) {
+    if (captureDraft.value) moveCaptureSelection(event)
+    return
+  }
+  finishAnnotation()
+}
+
+function startCaptureSelection(event) {
+  if (!canCaptureQuestion.value) return
+  event.preventDefault()
+  documentSurface.value?.setPointerCapture?.(event.pointerId)
+  const point = pointerDisplayPoint(event)
+  captureDraft.value = {
+    startX: point.x,
+    startY: point.y,
+    endX: point.x,
+    endY: point.y,
+  }
+}
+
+function moveCaptureSelection(event) {
+  if (!captureDraft.value) return
+  event.preventDefault()
+  const point = pointerDisplayPoint(event)
+  captureDraft.value.endX = point.x
+  captureDraft.value.endY = point.y
+}
+
+async function finishCaptureSelection(event) {
+  if (!captureDraft.value) return
+  event.preventDefault()
+  moveCaptureSelection(event)
+  const rect = normalizedCaptureRect(captureDraft.value)
+  if (rect.width < 36 || rect.height < 36) {
+    captureDraft.value = null
+    extractError.value = '框选区域太小，请重新拖拽截取题目'
+    return
+  }
+  try {
+    const imageDataUrl = await captureSelectionDataUrl(rect)
+    const page = Math.max(1, Number(currentPage.value || 1))
+    stopCaptureQuestion()
+    if (captureTarget.value === 'card') {
+      cardForm.imageDataUrl = imageDataUrl
+      cardForm.title = defaultCardTitle(page)
+      cardForm.tag = selectedResource.value?.type || '资料截图'
+      cardForm.content = ''
+      cardForm.sourcePage = page
+      cardError.value = ''
+      cardModalOpen.value = true
+    } else {
+      excerptForm.imageDataUrl = imageDataUrl
+      excerptForm.correctAnswer = ''
+      excerptForm.categoryId = null
+      excerptForm.sourcePage = page
+      excerptError.value = ''
+      excerptModalOpen.value = true
+    }
+  } catch (error) {
+    captureDraft.value = null
+    extractError.value = error.message || '截图生成失败'
+  }
+}
+
+function defaultCardTitle(page) {
+  const name = selectedResource.value?.name || '学习资料'
+  return `${name} · 第 ${page} 页知识点`
+}
+
+function pointerDisplayPoint(event) {
+  const rect = documentSurface.value.getBoundingClientRect()
+  return {
+    x: Math.max(0, Math.min(rect.width, event.clientX - rect.left)),
+    y: Math.max(0, Math.min(rect.height, event.clientY - rect.top)),
+  }
+}
+
+function normalizedCaptureRect(draft) {
+  const x = Math.min(draft.startX, draft.endX)
+  const y = Math.min(draft.startY, draft.endY)
+  return {
+    x,
+    y,
+    width: Math.abs(draft.endX - draft.startX),
+    height: Math.abs(draft.endY - draft.startY),
+  }
+}
+
+async function captureSelectionDataUrl(rect) {
+  if (previewMode.value === 'pdf') {
+    const canvas = pdfCanvas.value
+    if (!canvas || !canvas.width || !canvas.height) {
+      throw new Error('当前 PDF 页面还没有渲染完成')
+    }
+    return canvasToCompressedDataUrl(canvas, rect, renderedSize)
+  }
+  if (previewMode.value === 'image') {
+    const image = documentSurface.value?.querySelector?.('.image-page')
+    if (!image?.naturalWidth || !image?.naturalHeight) {
+      throw new Error('当前图片还没有加载完成')
+    }
+    const localRect = elementLocalCaptureRect(rect, image)
+    ensureCaptureRect(localRect)
+    return imageElementToDataUrl(image, localRect)
+  }
+  if (previewMode.value === 'docx') {
+    const page = documentSurface.value?.querySelector?.('.docx-page')
+    if (!page) {
+      throw new Error('当前 Word 页面还没有渲染完成')
+    }
+    const localRect = elementLocalCaptureRect(rect, page)
+    ensureCaptureRect(localRect)
+    return domElementToDataUrl(page, localRect)
+  }
+  throw new Error('当前资料不能截图入题库')
+}
+
+function imageElementToDataUrl(image, rect) {
+  const scaleX = image.naturalWidth / Math.max(1, image.getBoundingClientRect().width)
+  const scaleY = image.naturalHeight / Math.max(1, image.getBoundingClientRect().height)
+  const source = document.createElement('canvas')
+  source.width = image.naturalWidth
+  source.height = image.naturalHeight
+  source.getContext('2d').drawImage(image, 0, 0)
+  return canvasToCompressedDataUrl(source, {
+    x: rect.x * scaleX,
+    y: rect.y * scaleY,
+    width: rect.width * scaleX,
+    height: rect.height * scaleY,
+  }, { width: image.naturalWidth, height: image.naturalHeight })
+}
+
+async function domElementToDataUrl(element, rect) {
+  const elementRect = element.getBoundingClientRect()
+  const canvas = await html2canvas(element, {
+    backgroundColor: '#ffffff',
+    scale: Math.min(2, window.devicePixelRatio || 1),
+    useCORS: true,
+    logging: false,
+  })
+  return canvasToCompressedDataUrl(canvas, rect, {
+    width: elementRect.width,
+    height: elementRect.height,
+  })
+}
+
+function elementLocalCaptureRect(rect, element) {
+  const surfaceRect = documentSurface.value?.getBoundingClientRect()
+  const elementRect = element.getBoundingClientRect()
+  if (!surfaceRect || !elementRect.width || !elementRect.height) {
+    throw new Error('当前页面尺寸异常，请稍后再试')
+  }
+  const offsetX = elementRect.left - surfaceRect.left
+  const offsetY = elementRect.top - surfaceRect.top
+  const left = clamp(rect.x - offsetX, 0, elementRect.width)
+  const top = clamp(rect.y - offsetY, 0, elementRect.height)
+  const right = clamp(rect.x + rect.width - offsetX, 0, elementRect.width)
+  const bottom = clamp(rect.y + rect.height - offsetY, 0, elementRect.height)
+  return {
+    x: left,
+    y: top,
+    width: Math.max(0, right - left),
+    height: Math.max(0, bottom - top),
+  }
+}
+
+function ensureCaptureRect(rect) {
+  if (rect.width < 24 || rect.height < 24) {
+    throw new Error('框选区域没有落在文档内容上，请重新拖拽')
+  }
+}
+
+function canvasToCompressedDataUrl(canvas, rect, displaySize) {
+  const scaleX = canvas.width / Math.max(1, displaySize.width)
+  const scaleY = canvas.height / Math.max(1, displaySize.height)
+  const sx = clamp(rect.x * scaleX, 0, canvas.width)
+  const sy = clamp(rect.y * scaleY, 0, canvas.height)
+  const sw = clamp(rect.width * scaleX, 1, canvas.width - sx)
+  const sh = clamp(rect.height * scaleY, 1, canvas.height - sy)
+  const maxWidth = 1280
+  const maxHeight = 1700
+  const scale = Math.min(1, maxWidth / Math.max(1, sw), maxHeight / Math.max(1, sh))
+  const target = document.createElement('canvas')
+  target.width = Math.max(1, Math.round(sw * scale))
+  target.height = Math.max(1, Math.round(sh * scale))
+  const context = target.getContext('2d')
+  context.drawImage(canvas, sx, sy, sw, sh, 0, 0, target.width, target.height)
+  return target.toDataURL('image/jpeg', 0.82)
 }
 
 function closeExcerptModal() {
@@ -1069,120 +1389,78 @@ function closeExcerptModal() {
   excerptError.value = ''
 }
 
-function addExcerptOption() {
-  if (excerptForm.options.length < 8) excerptForm.options.push('')
+function closeCardModal() {
+  cardModalOpen.value = false
+  cardError.value = ''
 }
 
-function removeExcerptOption(index) {
-  if (excerptForm.options.length > 2) excerptForm.options.splice(index, 1)
+function submitCaptureCard() {
+  if (!selectedResource.value) return
+  if (!cardForm.imageDataUrl) {
+    cardError.value = '请先框选知识点截图'
+    return
+  }
+  if (!cardForm.title.trim() || !cardForm.content.trim()) {
+    cardError.value = '请填写卡片标题和内容'
+    return
+  }
+  emit('create-card', {
+    title: cardForm.title,
+    tag: cardForm.tag || '资料截图',
+    content: cardForm.content,
+    imageDataUrl: cardForm.imageDataUrl,
+    sourceName: selectedResource.value.name,
+    sourcePage: cardForm.sourcePage || currentPage.value || 1,
+    createdAt: new Date().toISOString(),
+  })
+  cardModalOpen.value = false
+  cardForm.imageDataUrl = ''
+  cardForm.title = ''
+  cardForm.tag = ''
+  cardForm.content = ''
+  showToast('截图已加入知识卡片')
 }
 
 async function submitExcerptQuestion() {
   if (!selectedResource.value) return
-  if (excerptIsChoice.value && excerptForm.options.filter(Boolean).length < 2) {
-    excerptError.value = '选择题至少需要两个有效选项'
+  if (!excerptForm.imageDataUrl) {
+    excerptError.value = '请先框选题目截图'
+    return
+  }
+  if (!excerptForm.correctAnswer.trim()) {
+    excerptError.value = '请填写正确答案'
     return
   }
   excerptSaving.value = true
   excerptError.value = ''
   try {
-    const payload = {
-      content: excerptForm.content,
-      questionType: excerptForm.questionType,
-      options: excerptIsChoice.value ? excerptForm.options.filter(Boolean) : [],
+    const page = excerptForm.sourcePage || currentPage.value || 1
+    await createImageQuestionFromResource(selectedResource.value.id, {
+      title: `${selectedResource.value.name} · 第 ${page} 页截图题`,
+      imageDataUrl: excerptForm.imageDataUrl,
       correctAnswer: excerptForm.correctAnswer,
-      analysis: excerptForm.analysis || null,
-      difficulty: excerptForm.difficulty,
-      subject: excerptForm.subject || null,
-      knowledgePoint: excerptForm.knowledgePoint || null,
-      status: excerptForm.status,
-      categoryId: excerptForm.categoryId,
-      sourcePage: excerptForm.sourcePage || currentPage.value || 1,
-      sourceExcerpt: excerptForm.sourceExcerpt || null,
-    }
-    const response = await createQuestionFromResource(selectedResource.value.id, payload)
-    const createdQuestion = response.data?.data
-    if (excerptForm.createPlan) {
-      await createStudyPlan({
-        title: `复习资料题：${excerptForm.content.replace(/\s+/g, ' ').trim().slice(0, 42)}`,
-        content: [
-          `从资料《${selectedResource.value.name}》第 ${payload.sourcePage} 页生成。`,
-          payload.sourceExcerpt ? `资料摘录：${payload.sourceExcerpt}` : '',
-          `正确答案：${payload.correctAnswer}`,
-        ].filter(Boolean).join('\n'),
-        planDate: excerptForm.planDate || new Date().toISOString().slice(0, 10),
-        targetType: 'QUESTION',
-        targetId: createdQuestion?.id || null,
-        targetTitle: createdQuestion?.content?.slice?.(0, 120) || excerptForm.content.slice(0, 120),
-      })
+      categoryId: normalizeCategoryId(excerptForm.categoryId),
+      sourcePage: page,
+      status: 'PUBLISHED',
+    })
+    extractResult.value = {
+      createdCount: 1,
+      message: '截图题已归档到题库，可直接用于练习。',
     }
     excerptModalOpen.value = false
-    showToast(excerptForm.createPlan ? '已加入题库，并同步生成学习计划' : '已加入题库，并保留资料来源')
+    excerptForm.imageDataUrl = ''
+    showToast('截图题已保存到题库')
   } catch (error) {
-    excerptError.value = error.response?.data?.message || '题目保存失败'
+    excerptError.value = error.response?.data?.message || error.message || '截图题保存失败'
   } finally {
     excerptSaving.value = false
   }
 }
 
-async function saveImageQuestion() {
-  if (!selectedResource.value || !canSaveImageQuestion.value) return
-  savingImageQuestion.value = true
-  extractError.value = ''
-  extractResult.value = null
-  try {
-    const payload = await imageQuestionPayload()
-    const response = await createImageQuestionFromResource(selectedResource.value.id, {
-      ...payload,
-      status: 'DRAFT',
-    })
-    const question = response.data?.data
-    extractResult.value = {
-      createdCount: 1,
-      message: '图片已保存为草稿题，可到题库补充答案。',
-      previews: question ? [question] : [],
-    }
-    showToast('图片题已加入题库草稿')
-  } catch (error) {
-    extractError.value = error.response?.data?.message || error.message || '图片题保存失败'
-  } finally {
-    savingImageQuestion.value = false
-  }
-}
-
-async function imageQuestionPayload() {
-  const page = Math.max(1, Number(currentPage.value || 1))
-  const title = `${selectedResource.value.name} · 第 ${page} 页`
-  if (previewMode.value === 'pdf') {
-    const canvas = pdfCanvas.value
-    if (!canvas || !canvas.width || !canvas.height) {
-      throw new Error('当前 PDF 页面还没有渲染完成')
-    }
-    return {
-      title,
-      imageDataUrl: canvasToCompressedDataUrl(canvas),
-      sourcePage: page,
-    }
-  }
-  if (previewMode.value === 'image') {
-    return {
-      title: selectedResource.value.name,
-      imageUrl: selectedResource.value.fileUrl,
-      sourcePage: 1,
-    }
-  }
-  throw new Error('当前资料不能直接保存为图片题')
-}
-
-function canvasToCompressedDataUrl(canvas) {
-  const maxWidth = 1200
-  const scale = Math.min(1, maxWidth / Math.max(1, canvas.width))
-  const target = document.createElement('canvas')
-  target.width = Math.max(1, Math.round(canvas.width * scale))
-  target.height = Math.max(1, Math.round(canvas.height * scale))
-  const context = target.getContext('2d')
-  context.drawImage(canvas, 0, 0, target.width, target.height)
-  return target.toDataURL('image/jpeg', 0.82)
+function normalizeCategoryId(value) {
+  if (value === null || value === undefined || value === '' || value === 'null') return null
+  const id = Number(value)
+  return Number.isFinite(id) ? id : null
 }
 
 async function markLearnedHere() {
@@ -1208,18 +1486,6 @@ async function markLearnedHere() {
   await loadResources()
 }
 
-function selectedText() {
-  const text = window.getSelection?.()?.toString?.().trim()
-  return text && text.length >= 2 ? text.slice(0, 4000) : ''
-}
-
-function latestNoteText() {
-  const note = [...annotations.value]
-    .reverse()
-    .find((item) => item.type === 'note' && Number(item.page || 1) === Number(currentPage.value) && item.text)
-  return note?.text?.trim?.().slice(0, 4000) || ''
-}
-
 function showToast(message) {
   resourceToast.value = message
   window.setTimeout(() => {
@@ -1237,11 +1503,8 @@ async function toggleFavorite(resource) {
 async function removeResource(resource) {
   await deleteLearningResource(resource.id)
   if (selectedResource.value?.id === resource.id) selectedResource.value = null
+  await loadResourceTypeCounts()
   await loadResources()
-}
-
-function countType(type) {
-  return resources.value.filter((item) => item.type === type).length
 }
 
 function assetUrl(url) {
@@ -1286,16 +1549,6 @@ function annotationLabel(annotation) {
   return annotation.type === 'pen' ? '手写标记' : annotation.type === 'highlight' ? '重点高亮' : '资料标注'
 }
 
-function questionTypeLabel(type) {
-  return {
-    SINGLE_CHOICE: '单选题',
-    MULTIPLE_CHOICE: '多选题',
-    TRUE_FALSE: '判断题',
-    FILL_BLANK: '填空题',
-    SHORT_ANSWER: '简答题',
-  }[type] || type
-}
-
 function formatDateTime(value) {
   if (!value) return '-'
   return String(value).replace('T', ' ').slice(0, 16)
@@ -1315,10 +1568,10 @@ function clamp(value, min, max) {
   --resource-green: #5acb99;
   --resource-ink: #1e2c54;
   --resource-muted: #6f7da3;
-  --resource-line: rgba(73, 116, 221, 0.18);
+  --resource-line: rgba(73, 116, 221, 0.14);
   --resource-glass: rgba(255, 255, 255, 0.7);
   display: grid;
-  grid-template-columns: 206px minmax(0, 1fr);
+  grid-template-columns: 236px minmax(0, 1fr);
   min-height: 100vh;
   color: var(--resource-ink);
   background:
@@ -1393,9 +1646,11 @@ function clamp(value, min, max) {
   display: grid;
   align-content: start;
   gap: 18px;
-  padding: 18px 12px;
+  padding: 20px 16px;
   border-right: 1px solid rgba(73, 116, 221, 0.14);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(242, 247, 255, 0.56));
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.84), rgba(242, 247, 255, 0.62)),
+    radial-gradient(circle at 30% 8%, rgba(111, 213, 255, 0.16), transparent 34%);
   backdrop-filter: blur(16px);
 }
 
@@ -1407,23 +1662,26 @@ function clamp(value, min, max) {
 .resource-primary {
   cursor: pointer;
   border: 0;
-  border-radius: 6px;
+  border-radius: 16px;
   font-weight: 900;
   transition:
     transform 0.18s ease,
     box-shadow 0.18s ease,
-    background 0.18s ease;
+    background 0.18s ease,
+    color 0.18s ease;
 }
 
 .resource-back {
   display: flex;
-  min-height: 40px;
+  min-height: 44px;
   align-items: center;
   gap: 10px;
-  padding: 0 10px;
+  padding: 0 12px;
   color: var(--resource-blue);
   background: rgba(255, 255, 255, 0.68);
-  box-shadow: inset 0 0 0 1px rgba(73, 116, 221, 0.13);
+  box-shadow:
+    inset 0 0 0 1px rgba(73, 116, 221, 0.12),
+    0 10px 24px rgba(74, 96, 155, 0.06);
 }
 
 .resource-back:hover,
@@ -1462,49 +1720,72 @@ function clamp(value, min, max) {
 
 .resource-folders {
   display: grid;
-  gap: 6px;
+  gap: 8px;
+  padding-right: 4px;
 }
 
 .resource-folders button {
   position: relative;
   display: grid;
-  grid-template-columns: 32px minmax(0, 1fr) 30px;
-  min-height: 44px;
+  grid-template-columns: 36px minmax(0, 1fr) 32px;
+  min-height: 50px;
   align-items: center;
   gap: 8px;
-  padding: 0 10px;
-  overflow: hidden;
+  padding: 0 12px;
   color: var(--resource-muted);
   text-align: left;
   background: transparent;
+  will-change: transform;
 }
 
 .resource-folders button::before {
   position: absolute;
-  inset: 5px 0;
+  inset: 4px 0;
   z-index: -1;
   content: "";
   border-left: 3px solid transparent;
-  background: rgba(255, 255, 255, 0.54);
-  transform: skewX(-7deg);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.62);
+  box-shadow: inset 0 0 0 1px rgba(73, 116, 221, 0.08);
+  transition:
+    box-shadow 0.2s ease,
+    background 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.resource-folders button:hover {
+  color: var(--resource-blue);
+  transform: translateX(8px);
+}
+
+.resource-folders button:hover::before {
+  background:
+    linear-gradient(100deg, rgba(79, 136, 255, 0.1), rgba(111, 213, 255, 0.09) 58%, rgba(240, 166, 223, 0.12)),
+    rgba(255, 255, 255, 0.82);
+  box-shadow:
+    inset 0 0 0 1px rgba(73, 116, 221, 0.12),
+    0 12px 24px rgba(79, 136, 255, 0.11);
 }
 
 .resource-folders button.active {
-  color: #fff;
+  color: var(--resource-blue);
+  transform: translateX(6px);
 }
 
 .resource-folders button.active::before {
-  border-left-color: var(--resource-gold);
-  background: linear-gradient(100deg, var(--resource-blue), var(--resource-cyan) 56%, var(--resource-pink));
-  box-shadow: 0 12px 24px rgba(79, 136, 255, 0.2);
+  border-left-color: rgba(79, 136, 255, 0.78);
+  background:
+    linear-gradient(100deg, rgba(79, 136, 255, 0.14), rgba(111, 213, 255, 0.13) 56%, rgba(240, 166, 223, 0.16)),
+    rgba(255, 255, 255, 0.72);
+  box-shadow: 0 10px 22px rgba(79, 136, 255, 0.1);
 }
 
 .folder-icon {
   display: grid;
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   place-items: center;
-  border-radius: 50%;
+  border-radius: 14px;
   background: rgba(79, 136, 255, 0.1);
 }
 
@@ -1520,14 +1801,17 @@ function clamp(value, min, max) {
 
 .resource-upload {
   display: flex;
-  min-height: 52px;
+  min-height: 54px;
   align-items: center;
   justify-content: center;
   gap: 9px;
   overflow: hidden;
-  color: #fff;
-  background: linear-gradient(100deg, var(--resource-blue), var(--resource-cyan) 62%, var(--resource-pink));
-  box-shadow: 0 16px 30px rgba(79, 136, 255, 0.22);
+  color: rgba(57, 106, 220, 0.9);
+  border: 1px solid rgba(79, 136, 255, 0.12);
+  background:
+    linear-gradient(100deg, rgba(79, 136, 255, 0.1), rgba(111, 213, 255, 0.12) 62%, rgba(240, 166, 223, 0.14)),
+    rgba(255, 255, 255, 0.76);
+  box-shadow: 0 14px 28px rgba(79, 136, 255, 0.1);
 }
 
 .resource-upload input {
@@ -1609,8 +1893,9 @@ function clamp(value, min, max) {
 .resource-inspector {
   min-width: 0;
   overflow: hidden;
+  border-radius: 22px;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.74), rgba(247, 251, 255, 0.54)),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.8), rgba(247, 251, 255, 0.58)),
     repeating-linear-gradient(135deg, rgba(79, 136, 255, 0.025) 0 1px, transparent 1px 11px);
   box-shadow:
     inset 0 0 0 1px rgba(73, 116, 221, 0.13),
@@ -1636,7 +1921,12 @@ function clamp(value, min, max) {
   padding: 10px 8px 10px 10px;
   overflow: hidden;
   cursor: pointer;
+  border-radius: 18px;
   background: linear-gradient(90deg, rgba(255, 255, 255, 0.76), rgba(255, 255, 255, 0.32));
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    background 0.18s ease;
 }
 
 .resource-list article::before {
@@ -1651,6 +1941,7 @@ function clamp(value, min, max) {
 .resource-list article:hover {
   background: linear-gradient(90deg, rgba(232, 240, 255, 0.96), rgba(255, 255, 255, 0.46));
   box-shadow: 0 12px 24px rgba(79, 136, 255, 0.1);
+  transform: translateX(3px);
 }
 
 .resource-list article.active::before,
@@ -1768,6 +2059,7 @@ function clamp(value, min, max) {
 .reader-tool-group {
   min-height: 38px;
   padding: 3px;
+  border-radius: 16px;
   background: rgba(255, 255, 255, 0.58);
   box-shadow: inset 0 0 0 1px rgba(73, 116, 221, 0.1);
 }
@@ -1779,6 +2071,7 @@ function clamp(value, min, max) {
   place-items: center;
   padding: 0;
   color: var(--resource-blue);
+  border-radius: 13px;
   background: transparent;
 }
 
@@ -1832,6 +2125,23 @@ function clamp(value, min, max) {
     radial-gradient(circle at 50% 0, rgba(111, 213, 255, 0.12), transparent 36%);
 }
 
+.capture-hint {
+  position: sticky;
+  z-index: 8;
+  top: 10px;
+  width: fit-content;
+  margin: 0 auto 12px;
+  padding: 9px 16px;
+  color: rgba(40, 74, 150, 0.82);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow:
+    inset 0 0 0 1px rgba(79, 136, 255, 0.16),
+    0 12px 26px rgba(79, 136, 255, 0.12);
+  font-size: 13px;
+  font-weight: 900;
+}
+
 .document-surface {
   position: relative;
   width: fit-content;
@@ -1839,6 +2149,7 @@ function clamp(value, min, max) {
   min-height: 780px;
   margin: 0 auto;
   background: #fff;
+  border-radius: 18px;
   box-shadow:
     0 28px 56px rgba(56, 75, 130, 0.18),
     0 0 0 1px rgba(73, 116, 221, 0.1);
@@ -1847,6 +2158,7 @@ function clamp(value, min, max) {
 .document-surface.pdf-surface {
   width: auto;
   max-width: none;
+  border-radius: 8px;
 }
 
 .document-surface::before {
@@ -1859,6 +2171,30 @@ function clamp(value, min, max) {
   background: linear-gradient(90deg, transparent, rgba(237, 199, 103, 0.9));
   clip-path: polygon(18% 0, 100% 0, 82% 100%, 0 100%);
   z-index: 3;
+}
+
+.document-surface.capturing {
+  cursor: crosshair;
+  user-select: none;
+}
+
+.capture-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  pointer-events: none;
+}
+
+.capture-selection {
+  position: absolute;
+  border: 2px solid rgba(79, 136, 255, 0.78);
+  border-radius: 16px;
+  background:
+    linear-gradient(135deg, rgba(79, 136, 255, 0.12), rgba(240, 166, 223, 0.13));
+  box-shadow:
+    0 0 0 9999px rgba(20, 34, 70, 0.16),
+    0 14px 32px rgba(79, 136, 255, 0.18),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.72);
 }
 
 .mode-pen .document-surface,
@@ -1884,6 +2220,7 @@ function clamp(value, min, max) {
   font-size: 16px;
   line-height: 1.75;
   background: #fff;
+  border-radius: 18px;
 }
 
 .docx-page :deep(p) {
@@ -1919,6 +2256,33 @@ function clamp(value, min, max) {
 
 .image-page {
   max-width: 920px;
+}
+
+.media-page {
+  position: relative;
+  z-index: 4;
+  display: block;
+  width: min(100%, 980px);
+  min-width: min(100%, 680px);
+  pointer-events: auto;
+}
+
+.video-page {
+  aspect-ratio: 16 / 9;
+  max-height: min(68vh, 680px);
+  background: #111827;
+  border-radius: 14px;
+}
+
+.audio-page {
+  width: min(720px, 72vw);
+  min-height: 88px;
+  padding: 24px;
+  border-radius: 18px;
+  background:
+    linear-gradient(135deg, rgba(79, 136, 255, 0.12), rgba(240, 166, 223, 0.16)),
+    rgba(255, 255, 255, 0.88);
+  box-shadow: inset 0 0 0 1px rgba(73, 116, 221, 0.12);
 }
 
 .unsupported-page {
@@ -2019,13 +2383,18 @@ function clamp(value, min, max) {
 .resource-inspector {
   display: grid;
   align-content: start;
+  grid-auto-rows: max-content;
   gap: 14px;
   padding: 12px;
   overflow: auto;
+  isolation: isolate;
 }
 
 .resource-inspector section {
+  position: relative;
+  z-index: 0;
   display: grid;
+  min-width: 0;
   gap: 12px;
   padding: 4px 2px 14px;
   border-bottom: 1px solid rgba(73, 116, 221, 0.12);
@@ -2035,12 +2404,14 @@ function clamp(value, min, max) {
   border-bottom: 0;
 }
 
-.progress-panel {
+.resource-progress-panel {
   justify-items: center;
   min-width: 0;
+  grid-auto-rows: max-content;
+  align-content: start;
 }
 
-.progress-panel > .resource-kicker {
+.resource-progress-panel > .resource-kicker {
   justify-self: start;
 }
 
@@ -2134,6 +2505,8 @@ function clamp(value, min, max) {
 }
 
 .resource-primary {
+  position: relative;
+  z-index: 2;
   display: flex;
   min-height: 44px;
   width: 100%;
@@ -2142,11 +2515,13 @@ function clamp(value, min, max) {
   justify-content: center;
   gap: 8px;
   color: #fff;
-  background: linear-gradient(100deg, var(--resource-blue), var(--resource-cyan), var(--resource-pink));
-  box-shadow: 0 14px 28px rgba(79, 136, 255, 0.2);
+  background: linear-gradient(100deg, rgba(79, 136, 255, 0.9), rgba(111, 213, 255, 0.78), rgba(240, 166, 223, 0.82));
+  box-shadow: 0 12px 24px rgba(79, 136, 255, 0.14);
 }
 
 .resource-secondary {
+  position: relative;
+  z-index: 2;
   display: flex;
   min-height: 42px;
   width: 100%;
@@ -2157,7 +2532,7 @@ function clamp(value, min, max) {
   cursor: pointer;
   color: var(--resource-blue);
   border: 0;
-  border-radius: 6px;
+  border-radius: 16px;
   background: rgba(255, 255, 255, 0.68);
   box-shadow: inset 0 0 0 1px rgba(73, 116, 221, 0.14);
   font-weight: 900;
@@ -2174,6 +2549,16 @@ function clamp(value, min, max) {
   cursor: not-allowed;
   filter: grayscale(0.35);
   opacity: 0.55;
+}
+
+.resource-secondary.card-action {
+  color: #7b5fd6;
+  background:
+    linear-gradient(100deg, rgba(255, 255, 255, 0.76), rgba(246, 241, 255, 0.82)),
+    rgba(255, 255, 255, 0.68);
+  box-shadow:
+    inset 0 0 0 1px rgba(123, 95, 214, 0.18),
+    0 10px 22px rgba(123, 95, 214, 0.08);
 }
 
 .resource-primary.inline {
@@ -2194,16 +2579,53 @@ function clamp(value, min, max) {
 }
 
 .resource-modal {
-  width: min(760px, 100%);
+  width: min(680px, 100%);
   max-height: min(92vh, 860px);
   overflow: auto;
   color: var(--resource-ink);
+  border-radius: 24px;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(247, 251, 255, 0.94)),
     repeating-linear-gradient(135deg, rgba(79, 136, 255, 0.028) 0 1px, transparent 1px 11px);
   box-shadow:
     0 26px 70px rgba(38, 58, 118, 0.25),
     inset 0 0 0 1px rgba(73, 116, 221, 0.16);
+}
+
+.capture-preview {
+  display: grid;
+  min-height: 220px;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 16px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(247, 251, 255, 0.62));
+  box-shadow:
+    inset 0 0 0 1px rgba(73, 116, 221, 0.14),
+    0 14px 34px rgba(74, 96, 155, 0.08);
+}
+
+.capture-preview img {
+  display: block;
+  max-width: 100%;
+  max-height: min(48vh, 430px);
+  object-fit: contain;
+}
+
+.capture-preview.card-preview {
+  min-height: 260px;
+  background:
+    radial-gradient(circle at 12% 12%, rgba(123, 95, 214, 0.1), transparent 32%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(248, 246, 255, 0.7));
+}
+
+.card-capture-modal .resource-primary.inline {
+  background: linear-gradient(100deg, #6d7dff, #7bd4ff 52%, #d8a5f4);
+}
+
+.capture-preview span {
+  color: var(--resource-muted);
+  font-weight: 900;
 }
 
 .resource-modal header {
@@ -2241,7 +2663,7 @@ function clamp(value, min, max) {
   cursor: pointer;
   color: var(--resource-blue);
   border: 0;
-  border-radius: 6px;
+  border-radius: 14px;
   background: rgba(79, 136, 255, 0.08);
   font-size: 18px;
   font-weight: 900;
@@ -2271,7 +2693,7 @@ function clamp(value, min, max) {
   width: 100%;
   min-width: 0;
   border: 0;
-  border-radius: 6px;
+  border-radius: 14px;
   outline: none;
   color: var(--resource-ink);
   background: rgba(255, 255, 255, 0.86);
@@ -2304,7 +2726,7 @@ function clamp(value, min, max) {
   gap: 12px;
   align-items: end;
   padding: 12px;
-  border-radius: 6px;
+  border-radius: 16px;
   background: rgba(79, 136, 255, 0.06);
   box-shadow: inset 0 0 0 1px rgba(73, 116, 221, 0.1);
 }
@@ -2326,7 +2748,7 @@ function clamp(value, min, max) {
   display: grid;
   gap: 9px;
   padding: 12px;
-  border-radius: 6px;
+  border-radius: 16px;
   background: rgba(79, 136, 255, 0.06);
 }
 
@@ -2343,7 +2765,7 @@ function clamp(value, min, max) {
   min-height: 38px;
   cursor: pointer;
   border: 0;
-  border-radius: 6px;
+  border-radius: 14px;
   background: rgba(255, 255, 255, 0.82);
   box-shadow: inset 0 0 0 1px rgba(73, 116, 221, 0.14);
   color: var(--resource-blue);
@@ -2378,44 +2800,28 @@ function clamp(value, min, max) {
   font-weight: 900;
 }
 
-.ai-extract-result,
-.ai-extract-preview article {
+.ai-extract-result {
   display: grid;
   gap: 5px;
   width: 100%;
   padding: 10px;
-  border-radius: 6px;
+  border-radius: 16px;
   background: rgba(79, 136, 255, 0.06);
   box-shadow: inset 0 0 0 1px rgba(73, 116, 221, 0.12);
 }
 
-.ai-extract-result strong,
-.ai-extract-preview strong {
+.ai-extract-result strong {
   color: var(--resource-blue);
   font-size: 13px;
 }
 
 .ai-extract-result span,
-.ai-extract-result p,
-.ai-extract-preview p,
-.ai-extract-preview small {
+.ai-extract-result p {
   margin: 0;
   color: var(--resource-muted);
   font-size: 12px;
   font-weight: 800;
   line-height: 1.55;
-}
-
-.ai-extract-preview {
-  align-items: stretch;
-}
-
-.ai-extract-preview p {
-  display: -webkit-box;
-  overflow: hidden;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
-  color: var(--resource-ink);
 }
 
 .resource-toast {
@@ -2426,7 +2832,7 @@ function clamp(value, min, max) {
   margin: 0;
   padding: 12px 16px;
   color: #fff;
-  border-radius: 6px;
+  border-radius: 16px;
   background: linear-gradient(100deg, var(--resource-blue), var(--resource-cyan), var(--resource-pink));
   box-shadow: 0 18px 38px rgba(79, 136, 255, 0.24);
   font-weight: 900;
@@ -2439,8 +2845,9 @@ function clamp(value, min, max) {
 }
 
 .resource-inspector dl div {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: minmax(72px, 0.8fr) minmax(0, 1.2fr);
+  align-items: start;
   gap: 12px;
   padding-bottom: 8px;
   border-bottom: 1px solid rgba(73, 116, 221, 0.1);
@@ -2456,6 +2863,8 @@ function clamp(value, min, max) {
 
 .resource-inspector dd {
   color: var(--resource-ink);
+  min-width: 0;
+  overflow-wrap: anywhere;
   text-align: right;
 }
 
@@ -2485,6 +2894,7 @@ function clamp(value, min, max) {
   margin: 0;
   padding: 18px;
   color: var(--resource-muted);
+  border-radius: 18px;
   border: 1px dashed var(--resource-line);
   background: rgba(255, 255, 255, 0.46);
   font-weight: 900;

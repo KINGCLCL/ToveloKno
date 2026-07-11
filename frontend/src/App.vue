@@ -114,54 +114,139 @@
 
           <div class="profile-cover-note">
             <span>LV.{{ level }}</span>
-            <strong>{{ profileDiy.coverText || '今日状态：轻装上阵' }}</strong>
+            <strong>{{ profileSlogan }}</strong>
           </div>
         </section>
 
         <section class="profile-personal-grid">
-          <article class="profile-story">
-            <span>ABOUT</span>
-            <h3>{{ profileDiy.coverText || '我的学习档案' }}</h3>
-            <p>{{ profileForm.bio || profile.bio }}</p>
-            <div class="profile-mini-stats">
+          <article class="profile-story profile-showcase">
+            <div class="profile-showcase-art" aria-hidden="true">
+              <img class="profile-art-main" :src="profileInfoWindowArt" alt="" />
+            </div>
+
+            <div class="profile-story-copy">
+              <span>ABOUT</span>
+              <h3>我的学习档案</h3>
+              <p>{{ profileForm.bio || profile.bio || '把最近要学的内容整理到这里。' }}</p>
+              <strong>{{ profileDiy.signature || '把知识整理成自己的节奏。' }}</strong>
+            </div>
+
+            <div class="profile-showcase-flow">
+              <button
+                v-for="module in profileModules"
+                :key="module.code"
+                type="button"
+                class="profile-flow-item"
+                @click="switchPanel(module.target)"
+              >
+                <em>{{ module.code }}</em>
+                <span>
+                  <b>{{ module.title }}</b>
+                  <small>{{ module.text }}</small>
+                </span>
+              </button>
+            </div>
+
+            <section class="profile-info-window">
+              <header>
+                <span>INFO</span>
+                <strong>个人信息</strong>
+              </header>
+              <div class="profile-info-list">
+                <span v-for="item in profileInfoItems" :key="item.label">
+                  <em>{{ item.label }}</em>
+                  <b>{{ item.value }}</b>
+                </span>
+              </div>
+            </section>
+
+            <div class="profile-brush-stats">
               <span><b>{{ resources.length }}</b>资料</span>
               <span><b>{{ cards.length }}</b>卡片</span>
-              <span><b>{{ planProgress }}%</b>进度</span>
+              <span><b>{{ planProgress }}%</b>计划</span>
             </div>
+
             <button class="profile-edit-banner-button" type="button" @click="openBannerEditor">
-              修改推荐画幅
+              调整首页画幅
             </button>
           </article>
 
-          <form class="profile-editor" @submit.prevent="saveProfile">
+          <form class="profile-editor profile-studio" @submit.prevent="saveProfile">
+            <div class="profile-editor-art" aria-hidden="true">
+              <img class="profile-editor-main" :src="profileEditStudioArt" alt="" />
+            </div>
             <header>
-              <span>DIY</span>
-              <strong>个人主页编辑</strong>
+              <span>STUDIO</span>
+              <strong>主页资料编辑</strong>
             </header>
-            <label>
-              <span>名字</span>
-              <input v-model.trim="profileForm.nickname" placeholder="你的名字" />
-            </label>
-            <label>
-              <span>头像图片</span>
-              <input type="file" accept="image/*" @change="uploadProfileImage($event, 'avatar')" />
-            </label>
-            <label>
-              <span>头图背景</span>
-              <input type="file" accept="image/*" @change="uploadProfileImage($event, 'background')" />
-            </label>
-            <label>
-              <span>个人简介</span>
-              <textarea v-model.trim="profileForm.bio" rows="4" placeholder="写一点你想展示的简介"></textarea>
-            </label>
-            <label>
-              <span>签名</span>
-              <input v-model.trim="profileDiy.signature" placeholder="一句短签名" />
-            </label>
-            <label>
-              <span>头图文案</span>
-              <input v-model.trim="profileDiy.coverText" placeholder="例如：今日状态：轻装上阵" />
-            </label>
+
+            <section class="profile-editor-preview">
+              <div class="profile-preview-avatar">
+                <img v-if="profileAvatarSrc" :src="profileAvatarSrc" alt="头像预览" />
+                <span v-else>{{ profileName.slice(0, 1).toUpperCase() }}</span>
+              </div>
+              <div>
+                <span>PROFILE</span>
+                <strong>{{ profileName }}</strong>
+                <small>{{ profileSlogan }}</small>
+              </div>
+            </section>
+
+            <div class="profile-editor-fields">
+              <label>
+                <span>名字</span>
+                <input v-model.trim="profileForm.nickname" placeholder="你的名字" />
+              </label>
+              <label>
+                <span>头像图片</span>
+                <div class="profile-file-input">
+                  <input type="file" accept="image/*" @change="uploadProfileImage($event, 'avatar')" />
+                  <strong>选择头像</strong>
+                  <small>{{ profileDiy.avatarUrl ? '已保存头像' : '未选择头像' }}</small>
+                </div>
+              </label>
+              <label>
+                <span>头图背景</span>
+                <div class="profile-file-input">
+                  <input type="file" accept="image/*" @change="uploadProfileImage($event, 'background')" />
+                  <strong>选择背景</strong>
+                  <small>{{ profileDiy.backgroundUrl ? '已保存背景' : '未选择背景' }}</small>
+                </div>
+              </label>
+              <label>
+                <span>个人简介</span>
+                <textarea v-model.trim="profileForm.bio" rows="4" placeholder="写一点你想展示的简介"></textarea>
+              </label>
+              <div class="profile-editor-pair">
+                <label>
+                  <span>年龄</span>
+                  <input v-model.trim="profileForm.profileAge" placeholder="例如：20" />
+                </label>
+                <label>
+                  <span>职业</span>
+                  <input v-model.trim="profileForm.profileOccupation" placeholder="例如：学生 / 设计师" />
+                </label>
+              </div>
+              <div class="profile-editor-pair">
+                <label>
+                  <span>电话</span>
+                  <input v-model.trim="profileForm.profilePhone" placeholder="可选填写" />
+                </label>
+                <label>
+                  <span>QQ</span>
+                  <input v-model.trim="profileForm.profileQq" placeholder="可选填写" />
+                </label>
+              </div>
+              <label>
+                <span>签名</span>
+                <input v-model.trim="profileDiy.signature" placeholder="一句短签名" />
+              </label>
+              <label>
+                <span>主页标语</span>
+                <input v-model.trim="profileDiy.coverText" placeholder="例如：轻装上阵，慢慢变强。" />
+              </label>
+            </div>
+            <p v-if="profileMessage" class="profile-editor-message">{{ profileMessage }}</p>
             <button class="primary-button soft" type="submit">保存主页资料</button>
           </form>
 
@@ -250,7 +335,15 @@
     </section>
 
     <section v-else-if="activePanel === 'resources'" class="full-module-screen">
-      <LearningResourceWorkspace @back-home="switchPanel('home')" />
+      <LearningResourceWorkspace @back-home="switchPanel('home')" @create-card="addCardFromResource" />
+    </section>
+
+    <section v-else-if="activePanel === 'share'" class="full-module-screen">
+      <ResourceShareWorkspace @back-home="switchPanel('home')" />
+    </section>
+
+    <section v-else-if="activePanel === 'forum'" class="full-module-screen">
+      <StudyForumWorkspace @back-home="switchPanel('home')" />
     </section>
 
     <section v-else-if="activePanel === 'ai'" class="full-module-screen">
@@ -263,6 +356,10 @@
 
     <section v-else-if="activePanel === 'plan'" class="full-module-screen">
       <StudyPlanWorkspace @back-home="switchPanel('home')" @open-module="switchPanel" />
+    </section>
+
+    <section v-else-if="activePanel === 'admin'" class="full-module-screen">
+      <AdminWorkspace :is-admin="isAdmin" @back-home="switchPanel('home')" />
     </section>
 
     <section v-else :class="['workspace', { 'home-workspace': activePanel === 'home' }]">
@@ -322,6 +419,15 @@
           @pointerleave="setHomePointerActive(false)"
         >
           <canvas ref="homeParticleCanvas" class="home-particle-canvas" aria-hidden="true"></canvas>
+          <section class="home-stat-strip" aria-label="学习统计概览">
+            <div class="home-mini-bars" aria-label="进度概览">
+              <article v-for="bar in chartBars" :key="bar.label">
+                <span>{{ bar.label }}</span>
+                <i><b :style="{ width: bar.value + '%' }"></b></i>
+                <em>{{ bar.value }}%</em>
+              </article>
+            </div>
+          </section>
           <section class="recommend-carousel" aria-label="推荐画幅">
             <article
               class="recommend-slide"
@@ -414,8 +520,8 @@
             </span>
             <div class="lineart-title-layer">
               <span class="ark-kicker">STUDY FLOW</span>
-              <h3>把资料读进去，把题目留下来。</h3>
-              <p>PDF、Word、截图和笔记先进资料区，能识别出的题目直接留进题库。</p>
+              <h3>ToveloKno = "to love knowledge"</h3>
+              <p>把资料、题目、卡片和复盘都留在热爱知识的路线上。</p>
             </div>
           </section>
 
@@ -537,13 +643,31 @@
         </section>
 
         <section v-else-if="activePanel === 'cards'" :key="'cards'" class="module-board ark-board">
-          <div class="simple-head">
+          <div class="simple-head card-workspace-head">
             <div>
               <span class="ark-kicker">MEMORY / CARD</span>
               <h3>知识卡片</h3>
             </div>
             <button type="button" class="outline-button" @click="showCardForm = !showCardForm">新建卡片</button>
           </div>
+
+          <section class="knowledge-card-summary" aria-label="知识卡片统计">
+            <article>
+              <span>卡片总数</span>
+              <strong>{{ cards.length }}</strong>
+              <p>手写与截图知识点</p>
+            </article>
+            <article>
+              <span>标签数量</span>
+              <strong>{{ cardTagStats.length }}</strong>
+              <p>{{ cardTagStats.slice(0, 3).join(' / ') || '暂无标签' }}</p>
+            </article>
+            <article>
+              <span>复习次数</span>
+              <strong>{{ cards.reduce((sum, item) => sum + item.reviewCount, 0) }}</strong>
+              <p>点击复习会累加</p>
+            </article>
+          </section>
 
           <form v-if="showCardForm" class="ark-form card-editor" @submit.prevent="addCard">
             <input v-model.trim="cardDraft.title" placeholder="卡片标题" />
@@ -552,18 +676,60 @@
             <button class="primary-button" type="submit">保存卡片</button>
           </form>
 
-          <div class="card-grid">
-            <article v-for="card in cards" :key="card.id" class="study-card">
-              <span>{{ card.tag }}</span>
+          <div class="card-grid knowledge-card-grid">
+            <article v-for="card in cards" :key="card.id" class="study-card knowledge-card" role="button" tabindex="0" @click="openCardDetail(card)" @keydown.enter.prevent="openCardDetail(card)">
+              <div class="knowledge-card-top">
+                <span>{{ card.tag }}</span>
+                <em>{{ card.sourcePage ? `P${card.sourcePage}` : 'NOTE' }}</em>
+              </div>
+              <img v-if="card.imageDataUrl" class="knowledge-card-shot" :src="card.imageDataUrl" alt="知识卡片截图" />
               <h4>{{ card.title }}</h4>
               <p>{{ card.content }}</p>
+              <div v-if="card.sourceName" class="knowledge-card-source">
+                <b>来源</b>
+                <small>{{ card.sourceName }}</small>
+              </div>
               <div class="card-actions">
-                <button type="button" @click="reviewCard(card)">复习 +1</button>
-                <button type="button" @click="removeCard(card.id)">删除</button>
+                <button type="button" @click.stop="reviewCard(card)">复习 +1</button>
+                <button type="button" @click.stop="removeCard(card.id)">删除</button>
               </div>
               <small>已复习 {{ card.reviewCount }} 次</small>
             </article>
           </div>
+
+          <Teleport to="body">
+            <div v-if="activeCardDetail" class="card-detail-backdrop" @click.self="closeCardDetail">
+              <section class="card-detail-modal" role="dialog" aria-modal="true" aria-label="知识卡片详情">
+                <header>
+                  <div>
+                    <span>{{ activeCardDetail.tag }}</span>
+                    <h3>{{ activeCardDetail.title }}</h3>
+                  </div>
+                  <button type="button" aria-label="关闭" @click="closeCardDetail">×</button>
+                </header>
+                <img v-if="activeCardDetail.imageDataUrl" class="card-detail-image" :src="activeCardDetail.imageDataUrl" alt="知识卡片截图" />
+                <p class="card-detail-content">{{ activeCardDetail.content }}</p>
+                <dl class="card-detail-meta">
+                  <div>
+                    <dt>复习</dt>
+                    <dd>{{ activeCardDetail.reviewCount }} 次</dd>
+                  </div>
+                  <div v-if="activeCardDetail.sourceName">
+                    <dt>来源</dt>
+                    <dd>{{ activeCardDetail.sourceName }}</dd>
+                  </div>
+                  <div v-if="activeCardDetail.sourcePage">
+                    <dt>页码</dt>
+                    <dd>P{{ activeCardDetail.sourcePage }}</dd>
+                  </div>
+                </dl>
+                <footer>
+                  <button type="button" @click="reviewCard(activeCardDetail)">复习 +1</button>
+                  <button type="button" @click="removeCard(activeCardDetail.id)">删除</button>
+                </footer>
+              </section>
+            </div>
+          </Teleport>
         </section>
 
         <section v-else-if="activePanel === 'stats'" :key="'stats'" class="module-board ark-board">
@@ -717,8 +883,11 @@ import QuestionBankWorkspace from './modules/question-bank/views/QuestionBankWor
 import './modules/question-bank/styles/question-bank-workspace.css'
 import AiAssistantWorkspace from './modules/ai-assistant/AiAssistantWorkspace.vue'
 import LearningResourceWorkspace from './modules/learning-resource/LearningResourceWorkspace.vue'
+import ResourceShareWorkspace from './modules/resource-share/ResourceShareWorkspace.vue'
+import StudyForumWorkspace from './modules/study-forum/StudyForumWorkspace.vue'
 import StudyPlanWorkspace from './modules/study-plan/StudyPlanWorkspace.vue'
 import WrongQuestionWorkspace from './modules/wrong-question/WrongQuestionWorkspace.vue'
+import AdminWorkspace from './modules/admin/AdminWorkspace.vue'
 import homeAccentBook from './assets/home-accent-book.png'
 import homeAccentFlower from './assets/home-accent-flower.png'
 import homeAccentPencilNote from './assets/home-accent-pencil-note.png'
@@ -726,6 +895,8 @@ import homeBgDocs from './assets/home-bg-docs.png'
 import homeBgPlan from './assets/home-bg-plan.png'
 import homeBgPractice from './assets/home-bg-practice.png'
 import homeStudyLineart from './assets/home-study-lineart.jpg'
+import profileEditStudioArt from './assets/profile-edit-studio.png'
+import profileInfoWindowArt from './assets/profile-info-window.png'
 
 const nowTime = () =>
   new Intl.DateTimeFormat('zh-CN', {
@@ -738,6 +909,8 @@ const nowTime = () =>
 const createId = (prefix) => `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`
 
 const HOME_BANNER_STORAGE_KEY = 'tovelokno-home-banners'
+const KNOWLEDGE_CARDS_STORAGE_PREFIX = 'tovelokno-knowledge-cards'
+const PROFILE_DRAFT_STORAGE_PREFIX = 'tovelokno-profile-draft'
 const BANNER_IMAGE_MAX_WIDTH = 1800
 const BANNER_IMAGE_QUALITY = 0.86
 const BANNER_CROP_WIDTH = 1600
@@ -769,6 +942,15 @@ const DEFAULT_HOME_BANNERS = [
     imageUrl: '',
   },
 ]
+
+const DEFAULT_PROFILE_SLOGAN = '轻装上阵，慢慢变强。'
+const LEGACY_PROFILE_SLOGAN = '今日状态：轻装上阵'
+
+const normalizeProfileSlogan = (value) => {
+  const text = `${value || ''}`.trim()
+  if (!text || text === LEGACY_PROFILE_SLOGAN) return ''
+  return text.replace(/今日状态[：:]?\s*/g, '').trim()
+}
 
 const cloneHomeBanners = (banners = DEFAULT_HOME_BANNERS) =>
   banners.map((item, index) => ({
@@ -839,8 +1021,11 @@ export default {
     AiAssistantWorkspace,
     LearningResourceWorkspace,
     QuestionBankWorkspace,
+    ResourceShareWorkspace,
+    StudyForumWorkspace,
     StudyPlanWorkspace,
     WrongQuestionWorkspace,
+    AdminWorkspace,
   },
   data() {
     return {
@@ -855,6 +1040,8 @@ export default {
       homeBgDocs,
       homeBgPractice,
       homeBgPlan,
+      profileEditStudioArt,
+      profileInfoWindowArt,
       homePointerActive: false,
       lastHomePetalAt: 0,
       homeParticles: [],
@@ -870,12 +1057,15 @@ export default {
         { id: 'home', label: '推荐首页', icon: 'HM' },
         { id: 'profile', label: '个人主页', icon: 'PR' },
         { id: 'resources', label: '学习资料', icon: 'RS' },
+        { id: 'share', label: '资源分享', icon: 'SH' },
+        { id: 'forum', label: '学习论坛', icon: 'FM' },
         { id: 'ai', label: 'AI 辅助', icon: 'AI' },
         { id: 'cards', label: '知识卡片', icon: 'CD' },
         { id: 'practice', label: '题目练习', icon: 'TR' },
         { id: 'wrong', label: '错题本', icon: 'ER' },
         { id: 'plan', label: '学习计划', icon: 'PL' },
         { id: 'stats', label: '统计', icon: 'DT' },
+        { id: 'admin', label: '管理员控制台', icon: 'AD' },
       ],
       homeBannerIndex: 0,
       showBannerEditor: false,
@@ -967,6 +1157,8 @@ export default {
       ],
       showCardForm: false,
       cardDraft: { title: '', tag: '', content: '' },
+      activeCardDetail: null,
+      cardOwnerKey: 'guest',
       cards: [
         { id: 1, title: '夹逼准则', tag: '极限', content: '当两侧函数趋向同一极限时，中间函数也趋向该极限。', reviewCount: 2 },
         { id: 2, title: '连续判定', tag: '函数', content: '函数值存在、极限存在且二者相等。', reviewCount: 1 },
@@ -1020,17 +1212,31 @@ export default {
         nickname: 'ToveloKno',
         email: '',
         bio: '把资料、卡片、练习与复盘串成自己的学习控制台。',
+        profileSignature: '把知识整理成自己的节奏。',
+        profileCoverText: DEFAULT_PROFILE_SLOGAN,
+        profileAge: '',
+        profileOccupation: '',
+        profilePhone: '',
+        profileQq: '',
+        roles: [],
       },
       profileForm: {
         nickname: 'ToveloKno',
         email: '',
         bio: '把资料、卡片、练习与复盘串成自己的学习控制台。',
+        profileSignature: '把知识整理成自己的节奏。',
+        profileCoverText: DEFAULT_PROFILE_SLOGAN,
+        profileAge: '',
+        profileOccupation: '',
+        profilePhone: '',
+        profileQq: '',
+        roles: [],
       },
       profileDiy: {
         avatarUrl: '',
         backgroundUrl: '',
         signature: '把知识整理成自己的节奏。',
-        coverText: '今日状态：轻装上阵',
+        coverText: DEFAULT_PROFILE_SLOGAN,
       },
       passwordForm: { oldPassword: '', newPassword: '', confirmPassword: '' },
       profileMessage: '',
@@ -1044,6 +1250,9 @@ export default {
         const matchKeyword = !keyword || `${item.name}${item.type}${item.description}`.toLowerCase().includes(keyword)
         return matchTab && matchKeyword
       })
+    },
+    cardTagStats() {
+      return [...new Set(this.cards.map((item) => item.tag || '未分类'))]
     },
     selectedResource() {
       return this.resources.find((item) => item.id === this.selectedResourceId) || this.resources[0]
@@ -1324,20 +1533,27 @@ export default {
       return this.recommendationSlides[this.homeBannerIndex] || this.recommendationSlides[0] || cloneHomeBanners()[0]
     },
     navGroups() {
-      const order = new Map(this.navItems.map((item, index) => [item.id, {
+      const navItems = [...this.navItems]
+      if (!navItems.some((item) => item.id === 'forum')) {
+        const shareIndex = navItems.findIndex((item) => item.id === 'share')
+        navItems.splice(shareIndex >= 0 ? shareIndex + 1 : navItems.length, 0, { id: 'forum', label: '学习论坛', icon: 'FM' })
+      }
+      const order = new Map(navItems.map((item, index) => [item.id, {
         ...item,
         number: String(index + 1).padStart(2, '0'),
       }]))
       return [
         { title: '入口', items: ['home', 'profile'].map((id) => order.get(id)).filter(Boolean) },
-        { title: '学习', items: ['resources', 'ai', 'cards', 'practice', 'wrong', 'plan'].map((id) => order.get(id)).filter(Boolean) },
-        { title: '系统', items: ['stats'].map((id) => order.get(id)).filter(Boolean) },
+        { title: '学习', items: ['resources', 'share', 'forum', 'ai', 'cards', 'practice', 'wrong', 'plan'].map((id) => order.get(id)).filter(Boolean) },
+        { title: '系统', items: ['stats', ...(this.isAdmin ? ['admin'] : [])].map((id) => order.get(id)).filter(Boolean) },
       ]
     },
     moduleDock() {
       return [
         { id: 'home', code: 'HM', label: '首页' },
         { id: 'resources', code: 'RS', label: '资料' },
+        { id: 'share', code: 'SH', label: '分享' },
+        { id: 'forum', code: 'FM', label: '论坛' },
         { id: 'ai', code: 'AI', label: '辅助' },
         { id: 'cards', code: 'CD', label: '卡片' },
         { id: 'practice', code: 'QB', label: '题库' },
@@ -1366,11 +1582,31 @@ export default {
         { code: 'ER', title: '错题压制', text: `${this.filteredWrongQuestions.length} 条记录可处理`, target: 'wrong' },
       ]
     },
+    profileInfoItems() {
+      return [
+        { label: '年龄', value: this.profileForm.profileAge || '未填写' },
+        { label: '职业', value: this.profileForm.profileOccupation || '未填写' },
+        { label: '电话', value: this.profileForm.profilePhone || '未填写' },
+        { label: 'QQ', value: this.profileForm.profileQq || '未填写' },
+      ]
+    },
     level() {
       return Math.max(1, Math.ceil((this.cards.length + this.resources.length + this.plans.filter((item) => item.done).length) / 3))
     },
     profileName() {
       return this.profileForm.nickname || this.profile.nickname || 'ToveloKno'
+    },
+    isAdmin() {
+      return Array.isArray(this.profile.roles) && this.profile.roles.some((role) => String(role).toUpperCase() === 'ADMIN')
+    },
+    cardStorageKey() {
+      return `${KNOWLEDGE_CARDS_STORAGE_PREFIX}:${this.cardOwnerKey || 'guest'}`
+    },
+    profileDraftStorageKey() {
+      return `${PROFILE_DRAFT_STORAGE_PREFIX}:${this.cardOwnerKey || 'guest'}`
+    },
+    profileSlogan() {
+      return normalizeProfileSlogan(this.profileDiy.coverText) || DEFAULT_PROFILE_SLOGAN
     },
     profileCoverStyle() {
       return this.profileDiy.backgroundUrl
@@ -1392,10 +1628,14 @@ export default {
     },
   },
   mounted() {
+    this.loadPersistedCards()
     if (this.isLoggedIn) {
-      this.loadProfile()
+      this.loadProfile().then(() => this.loadPersistedCards())
       this.loadPlans()
       this.loadStudyLinkOverview()
+      if (typeof window !== 'undefined' && window.location.hash === '#forum') {
+        this.activePanel = 'forum'
+      }
     }
     this.loadHomeBanners().finally(() => this.startBannerAutoplay())
     this.startHomeParticleCanvas()
@@ -1425,6 +1665,10 @@ export default {
     switchPanel(panel) {
       const removedPanels = new Set(['dashboard', 'settings'])
       const targetPanel = removedPanels.has(panel) ? 'home' : panel
+      if (targetPanel === 'admin' && !this.isAdmin) {
+        this.activePanel = 'home'
+        return
+      }
       if (!targetPanel || this.activePanel === targetPanel) return
       this.activePanel = targetPanel
       if (typeof window !== 'undefined') {
@@ -1444,9 +1688,9 @@ export default {
       if (!force && now - this.lastHomePetalAt < interval) return
       this.lastHomePetalAt = now
 
-      const count = this.homePointerActive ? 22 : 9
+      const count = this.homePointerActive ? 12 : 5
       for (let index = 0; index < count; index += 1) {
-        const spread = this.homePointerActive ? 42 : 24
+        const spread = this.homePointerActive ? 30 : 18
         const x = event.clientX + (Math.random() - 0.5) * spread
         const y = event.clientY + (Math.random() - 0.5) * spread
         const isPetal = index % 3 !== 0
@@ -1454,19 +1698,19 @@ export default {
           type: isPetal ? 'petal' : 'spark',
           x,
           y,
-          vx: (Math.random() - 0.5) * (this.homePointerActive ? 3.1 : 1.7),
-          vy: -0.9 - Math.random() * (this.homePointerActive ? 3.2 : 1.9),
-          drift: (Math.random() - 0.5) * 0.04,
-          life: 1,
-          decay: isPetal ? 0.01 + Math.random() * 0.006 : 0.018 + Math.random() * 0.01,
-          size: isPetal ? 12 + Math.random() * 18 : 3 + Math.random() * 5,
+          vx: (Math.random() - 0.5) * (this.homePointerActive ? 2.1 : 1.2),
+          vy: -0.55 - Math.random() * (this.homePointerActive ? 2.1 : 1.2),
+          drift: (Math.random() - 0.5) * 0.026,
+          life: 0.82,
+          decay: isPetal ? 0.014 + Math.random() * 0.008 : 0.024 + Math.random() * 0.012,
+          size: isPetal ? 6 + Math.random() * 8 : 1.8 + Math.random() * 2.6,
           rotate: Math.random() * 360,
-          spin: (Math.random() - 0.5) * 7,
+          spin: (Math.random() - 0.5) * 4.8,
           tone: index % 4,
         })
       }
-      if (this.homeParticles.length > 620) {
-        this.homeParticles.splice(0, this.homeParticles.length - 620)
+      if (this.homeParticles.length > 320) {
+        this.homeParticles.splice(0, this.homeParticles.length - 320)
       }
     },
     startHomeParticleCanvas() {
@@ -1536,32 +1780,32 @@ export default {
       if (typeof window === 'undefined' || this.activePanel !== 'home') return
       const x = window.innerWidth * 0.72
       const y = window.innerHeight * 0.32
-      for (let index = 0; index < 36; index += 1) {
+      for (let index = 0; index < 18; index += 1) {
         this.homeParticles.push({
           type: index % 3 === 0 ? 'spark' : 'petal',
-          x: x + (Math.random() - 0.5) * 120,
-          y: y + (Math.random() - 0.5) * 80,
-          vx: (Math.random() - 0.5) * 2.4,
-          vy: -0.7 - Math.random() * 1.8,
-          drift: (Math.random() - 0.5) * 0.04,
-          life: 0.9,
-          decay: 0.012 + Math.random() * 0.01,
-          size: index % 3 === 0 ? 4 + Math.random() * 4 : 12 + Math.random() * 14,
+          x: x + (Math.random() - 0.5) * 96,
+          y: y + (Math.random() - 0.5) * 62,
+          vx: (Math.random() - 0.5) * 1.7,
+          vy: -0.45 - Math.random() * 1.2,
+          drift: (Math.random() - 0.5) * 0.026,
+          life: 0.72,
+          decay: 0.017 + Math.random() * 0.012,
+          size: index % 3 === 0 ? 2 + Math.random() * 2.4 : 6 + Math.random() * 7,
           rotate: Math.random() * 360,
-          spin: (Math.random() - 0.5) * 7,
+          spin: (Math.random() - 0.5) * 4.8,
           tone: index % 4,
         })
       }
     },
     drawHomeSpark(context, particle, alpha) {
-      const gradient = context.createRadialGradient(particle.x, particle.y, 0, particle.x, particle.y, particle.size * 3.2)
-      gradient.addColorStop(0, `rgba(255, 255, 255, ${0.9 * alpha})`)
-      gradient.addColorStop(0.28, `rgba(91, 136, 255, ${0.82 * alpha})`)
-      gradient.addColorStop(0.72, `rgba(238, 120, 206, ${0.46 * alpha})`)
+      const gradient = context.createRadialGradient(particle.x, particle.y, 0, particle.x, particle.y, particle.size * 2.6)
+      gradient.addColorStop(0, `rgba(255, 255, 255, ${0.62 * alpha})`)
+      gradient.addColorStop(0.28, `rgba(91, 136, 255, ${0.44 * alpha})`)
+      gradient.addColorStop(0.72, `rgba(238, 120, 206, ${0.24 * alpha})`)
       gradient.addColorStop(1, 'rgba(161, 186, 255, 0)')
       context.fillStyle = gradient
       context.beginPath()
-      context.arc(particle.x, particle.y, particle.size * 3.2, 0, Math.PI * 2)
+      context.arc(particle.x, particle.y, particle.size * 2.6, 0, Math.PI * 2)
       context.fill()
     },
     drawHomePetalParticle(context, particle, alpha) {
@@ -1578,11 +1822,11 @@ export default {
       context.rotate((particle.rotate * Math.PI) / 180)
       context.scale(1, 0.96 + Math.sin(particle.rotate / 30) * 0.08)
       const gradient = context.createLinearGradient(-width, -height, width, height)
-      gradient.addColorStop(0, `${colors[0]}${0.94 * alpha})`)
-      gradient.addColorStop(1, `${colors[1]}${0.76 * alpha})`)
+      gradient.addColorStop(0, `${colors[0]}${0.5 * alpha})`)
+      gradient.addColorStop(1, `${colors[1]}${0.34 * alpha})`)
       context.fillStyle = gradient
-      context.strokeStyle = `rgba(64, 93, 190, ${0.58 * alpha})`
-      context.lineWidth = 1
+      context.strokeStyle = `rgba(64, 93, 190, ${0.26 * alpha})`
+      context.lineWidth = 0.7
       context.beginPath()
       context.moveTo(0, -height)
       context.bezierCurveTo(width * 1.12, -height * 0.34, width * 0.86, height * 0.52, 0, height)
@@ -1593,7 +1837,7 @@ export default {
       context.beginPath()
       context.moveTo(0, -height * 0.72)
       context.quadraticCurveTo(width * 0.14, 0, 0, height * 0.62)
-      context.strokeStyle = `rgba(255, 255, 255, ${0.68 * alpha})`
+      context.strokeStyle = `rgba(255, 255, 255, ${0.36 * alpha})`
       context.stroke()
       context.restore()
     },
@@ -1843,18 +2087,144 @@ export default {
       try {
         const response = await getCurrentUserProfile()
         const data = response.data?.data || response.data || {}
+        const profileCoverText = normalizeProfileSlogan(data.profileCoverText)
         this.profile = {
           nickname: data.nickname || data.username || this.profile.nickname,
-          email: data.email || this.profile.email,
-          bio: data.bio || data.description || this.profile.bio,
-          avatar: data.avatar || this.profile.avatar,
-          profileBackground: data.profileBackground || this.profile.profileBackground,
+          email: data.email ?? this.profile.email,
+          bio: (data.bio ?? data.description) ?? this.profile.bio,
+          avatar: data.avatar ?? this.profile.avatar,
+          profileBackground: data.profileBackground ?? this.profile.profileBackground,
+          profileSignature: data.profileSignature ?? this.profile.profileSignature,
+          profileCoverText: profileCoverText || this.profile.profileCoverText,
+          profileAge: data.profileAge ?? this.profile.profileAge,
+          profileOccupation: data.profileOccupation ?? this.profile.profileOccupation,
+          profilePhone: data.profilePhone ?? this.profile.profilePhone,
+          profileQq: data.profileQq ?? this.profile.profileQq,
+          roles: data.roles ?? this.profile.roles,
         }
         this.profileForm = { ...this.profile }
         this.profileDiy.avatarUrl = data.avatar || this.profileDiy.avatarUrl
         this.profileDiy.backgroundUrl = data.profileBackground || this.profileDiy.backgroundUrl
+        this.profileDiy.signature = data.profileSignature || this.profileDiy.signature
+        this.profileDiy.coverText = profileCoverText || this.profileDiy.coverText
+        this.cardOwnerKey = String(data.id || data.username || data.email || data.nickname || this.profile.nickname || 'guest')
+        this.restoreProfileDraft()
       } catch {
         this.profileForm = { ...this.profile }
+      } finally {
+        this.loadPersistedCards()
+      }
+    },
+    restoreProfileDraft() {
+      if (typeof window === 'undefined') return
+      try {
+        const draft = JSON.parse(window.localStorage.getItem(this.profileDraftStorageKey) || 'null')
+        if (!draft || typeof draft !== 'object') return
+        const merged = { ...this.profileForm }
+        ;['profileAge', 'profileOccupation', 'profilePhone', 'profileQq'].forEach((field) => {
+          if (!merged[field] && draft[field]) merged[field] = draft[field]
+        })
+        this.profileForm = merged
+        this.profile = { ...this.profile, ...merged }
+        this.profileDiy.signature = this.profileDiy.signature || draft.profileSignature || ''
+        this.profileDiy.coverText = normalizeProfileSlogan(this.profileDiy.coverText) || normalizeProfileSlogan(draft.profileCoverText) || this.profileDiy.coverText
+      } catch {
+        // Ignore corrupted local profile drafts.
+      }
+    },
+    persistProfileDraft() {
+      if (typeof window === 'undefined') return
+      try {
+        window.localStorage.setItem(this.profileDraftStorageKey, JSON.stringify({
+          nickname: this.profileForm.nickname || '',
+          email: this.profileForm.email || '',
+          bio: this.profileForm.bio || '',
+          profileAge: this.profileForm.profileAge || '',
+          profileOccupation: this.profileForm.profileOccupation || '',
+          profilePhone: this.profileForm.profilePhone || '',
+          profileQq: this.profileForm.profileQq || '',
+          profileSignature: this.profileDiy.signature || '',
+          profileCoverText: normalizeProfileSlogan(this.profileDiy.coverText) || '',
+        }))
+      } catch {
+        // Local profile draft is only a safety net; backend remains the source of truth.
+      }
+    },
+    loadPersistedCards() {
+      if (typeof window === 'undefined') return
+      try {
+        const savedCards = this.collectStoredCards()
+        if (!savedCards.length) return
+        const currentCards = this.cards.filter((card) => !this.isStarterCard(card))
+        this.cards = this.mergeCards([...currentCards, ...savedCards])
+        if (this.activeCardDetail) {
+          this.activeCardDetail = this.cards.find((item) => item.id === this.activeCardDetail.id) || null
+        }
+        this.persistCards()
+      } catch {
+        // Keep bundled starter cards if local data is malformed.
+      }
+    },
+    collectStoredCards() {
+      const stored = []
+      const keys = new Set([
+        this.cardStorageKey,
+        'cards',
+        'knowledgeCards',
+        'knowledge-cards',
+        'tovelokno-cards',
+        'tovelokno-knowledgeCards',
+      ])
+      for (let index = 0; index < window.localStorage.length; index += 1) {
+        const key = window.localStorage.key(index)
+        if (
+          key?.startsWith(`${KNOWLEDGE_CARDS_STORAGE_PREFIX}:`)
+          || /(^|[-_:])knowledge[-_:]?cards?($|[-_:])/i.test(key || '')
+        ) {
+          keys.add(key)
+        }
+      }
+      keys.forEach((key) => {
+        try {
+          const parsed = JSON.parse(window.localStorage.getItem(key) || '[]')
+          if (Array.isArray(parsed)) stored.push(...parsed)
+        } catch {
+          // Ignore a single broken storage bucket and keep scanning others.
+        }
+      })
+      return stored.map(this.normalizeStoredCard).filter((card) => card.title || card.content || card.imageDataUrl)
+    },
+    normalizeStoredCard(card) {
+      return {
+        id: card.id || createId('card'),
+        title: card.title || '未命名卡片',
+        tag: card.tag || '未分类',
+        content: card.content || '',
+        imageDataUrl: card.imageDataUrl || '',
+        sourceName: card.sourceName || '',
+        sourcePage: card.sourcePage || null,
+        createdAt: card.createdAt || new Date().toISOString(),
+        reviewCount: Number(card.reviewCount || 0),
+      }
+    },
+    mergeCards(cards) {
+      const seen = new Set()
+      return cards.map(this.normalizeStoredCard).filter((card) => {
+        const identity = card.id || `${card.title}|${card.content}|${card.sourceName}|${card.sourcePage}|${card.imageDataUrl?.slice(0, 80)}`
+        if (seen.has(identity)) return false
+        seen.add(identity)
+        return true
+      })
+    },
+    isStarterCard(card) {
+      return [1, 2, 3].includes(card.id) && !card.imageDataUrl && !card.sourceName
+    },
+    persistCards() {
+      if (typeof window === 'undefined') return
+      try {
+        window.localStorage.setItem(this.cardStorageKey, JSON.stringify(this.cards))
+      } catch {
+        this.message = { type: 'error', text: '知识卡片本地保存失败，可能是截图太大或浏览器存储已满' }
       }
     },
     selectResource(resource) {
@@ -1901,12 +2271,42 @@ export default {
       })
       this.cardDraft = { title: '', tag: '', content: '' }
       this.showCardForm = false
+      this.persistCards()
+    },
+    addCardFromResource(payload = {}) {
+      const title = `${payload.title || ''}`.trim()
+      const content = `${payload.content || ''}`.trim()
+      if (!title || !content) return
+      this.cards.unshift({
+        id: createId('card'),
+        title,
+        tag: `${payload.tag || '资料截图'}`.trim() || '资料截图',
+        content,
+        imageDataUrl: payload.imageDataUrl || '',
+        sourceName: payload.sourceName || '',
+        sourcePage: payload.sourcePage || null,
+        createdAt: payload.createdAt || new Date().toISOString(),
+        reviewCount: 0,
+      })
+      this.activePanel = 'cards'
+      this.persistCards()
+    },
+    openCardDetail(card) {
+      this.activeCardDetail = card
+    },
+    closeCardDetail() {
+      this.activeCardDetail = null
     },
     reviewCard(card) {
       card.reviewCount += 1
+      this.persistCards()
     },
     removeCard(id) {
       this.cards = this.cards.filter((item) => item.id !== id)
+      if (this.activeCardDetail?.id === id) {
+        this.activeCardDetail = null
+      }
+      this.persistCards()
     },
     chooseAnswer(option) {
       this.selectedAnswer = option
@@ -2071,28 +2471,48 @@ export default {
     },
     async saveProfile() {
       try {
+        this.persistProfileDraft()
+        const profileCoverText = normalizeProfileSlogan(this.profileDiy.coverText)
         const response = await updateCurrentUserProfile({
           ...this.profileForm,
           avatar: this.profileDiy.avatarUrl || null,
           profileBackground: this.profileDiy.backgroundUrl || null,
+          profileSignature: this.profileDiy.signature || null,
+          profileCoverText: profileCoverText || null,
         })
         const data = response.data?.data || {}
-        this.profileDiy.avatarUrl = data.avatar || this.profileDiy.avatarUrl
-        this.profileDiy.backgroundUrl = data.profileBackground || this.profileDiy.backgroundUrl
-      } catch {
-        // 后端未启动或接口未完全实现时，仍保留前端本地预览。
+        const savedProfileCoverText = normalizeProfileSlogan(data.profileCoverText)
+        this.profileDiy.avatarUrl = data.avatar ?? this.profileDiy.avatarUrl
+        this.profileDiy.backgroundUrl = data.profileBackground ?? this.profileDiy.backgroundUrl
+        this.profileDiy.signature = data.profileSignature ?? this.profileDiy.signature
+        this.profileDiy.coverText = savedProfileCoverText || profileCoverText || this.profileDiy.coverText
+        this.profile = {
+          ...this.profileForm,
+          avatar: this.profileDiy.avatarUrl,
+          profileBackground: this.profileDiy.backgroundUrl,
+          profileSignature: this.profileDiy.signature,
+          profileCoverText: this.profileDiy.coverText,
+          profileAge: data.profileAge ?? this.profileForm.profileAge,
+          profileOccupation: data.profileOccupation ?? this.profileForm.profileOccupation,
+          profilePhone: data.profilePhone ?? this.profileForm.profilePhone,
+          profileQq: data.profileQq ?? this.profileForm.profileQq,
+        }
+        this.profileForm = { ...this.profile }
+        this.persistProfileDraft()
+        this.profileMessage = '主页资料已保存'
+      } catch (error) {
+        this.profileMessage = error.response?.data?.message || '主页资料保存失败'
       }
-      this.profile = { ...this.profileForm }
-      this.profileMessage = '资料已保存'
       setTimeout(() => {
         this.profileMessage = ''
-      }, 1800)
+      }, 2200)
     },
     async uploadProfileImage(event, type) {
       const file = event.target.files?.[0]
       event.target.value = ''
       if (!file) return
       try {
+        this.persistProfileDraft()
         const response = await uploadCurrentUserProfileImage(file, type)
         const data = response.data?.data || {}
         const url = data.url
@@ -2106,16 +2526,27 @@ export default {
           this.profileForm.avatar = url
         }
         if (data.user) {
+          const uploadedProfileCoverText = normalizeProfileSlogan(data.user.profileCoverText)
           this.profile = {
             ...this.profile,
-            nickname: data.user.nickname || data.user.username || this.profile.nickname,
-            email: data.user.email || this.profile.email,
-            bio: data.user.bio || this.profile.bio,
-            avatar: data.user.avatar || this.profile.avatar,
-            profileBackground: data.user.profileBackground || this.profile.profileBackground,
+            ...this.profileForm,
+            nickname: this.profileForm.nickname || data.user.nickname || data.user.username || this.profile.nickname,
+            email: this.profileForm.email ?? data.user.email ?? this.profile.email,
+            bio: this.profileForm.bio ?? data.user.bio ?? this.profile.bio,
+            avatar: data.user.avatar ?? this.profile.avatar,
+            profileBackground: data.user.profileBackground ?? this.profile.profileBackground,
+            profileSignature: this.profileDiy.signature || data.user.profileSignature || this.profile.profileSignature,
+            profileCoverText: uploadedProfileCoverText || this.profile.profileCoverText,
+            profileAge: this.profileForm.profileAge ?? data.user.profileAge ?? this.profile.profileAge,
+            profileOccupation: this.profileForm.profileOccupation ?? data.user.profileOccupation ?? this.profile.profileOccupation,
+            profilePhone: this.profileForm.profilePhone ?? data.user.profilePhone ?? this.profile.profilePhone,
+            profileQq: this.profileForm.profileQq ?? data.user.profileQq ?? this.profile.profileQq,
           }
           this.profileForm = { ...this.profile }
+          this.profileDiy.signature = this.profile.profileSignature || this.profileDiy.signature
+          this.profileDiy.coverText = uploadedProfileCoverText || this.profileDiy.coverText
         }
+        this.persistProfileDraft()
         this.profileMessage = type === 'background' ? '主页背景已上传' : '头像已上传'
       } catch (error) {
         this.profileMessage = error.response?.data?.message || '图片上传失败'

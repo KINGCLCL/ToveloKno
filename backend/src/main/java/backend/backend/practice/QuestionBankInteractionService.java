@@ -362,7 +362,9 @@ public class QuestionBankInteractionService {
     }
 
     private boolean answersEqual(QuestionType type, String expected, String actual) {
-        if (type == QuestionType.SINGLE_CHOICE || type == QuestionType.MULTIPLE_CHOICE) {
+        if (type == QuestionType.SINGLE_CHOICE
+                || type == QuestionType.MULTIPLE_CHOICE
+                || type == QuestionType.TRUE_FALSE) {
             return normalizeChoiceAnswer(expected).equals(normalizeChoiceAnswer(actual));
         }
         return normalizePlainAnswer(expected).equals(normalizePlainAnswer(actual));
@@ -374,17 +376,45 @@ public class QuestionBankInteractionService {
 
     private String normalizeChoiceAnswer(String value) {
         if (value == null) return "";
-        return String.join(",", java.util.Arrays.stream(value.toUpperCase(Locale.ROOT)
-                        .replaceAll("[，；;]", ",").split("[,\\s]+"))
+        return String.join(",", java.util.Arrays.stream(normalizeAnswerCharacters(value).toUpperCase(Locale.ROOT)
+                        .replaceAll("[,;]", ",").split("[,\\s]+"))
                 .map(String::trim)
                 .filter(part -> !part.isBlank())
+                .map(this::normalizeTrueFalseToken)
                 .sorted()
                 .toList());
     }
 
     private String normalizePlainAnswer(String value) {
         if (value == null) return "";
-        return value.trim().replaceAll("\\s+", " ").toLowerCase(Locale.ROOT);
+        return normalizeAnswerCharacters(value)
+                .trim()
+                .replaceAll("\\s+", " ")
+                .replaceAll("\\s*([,;:()\\[\\]{}=+\\-*/])\\s*", "$1")
+                .toLowerCase(Locale.ROOT);
+    }
+
+    private String normalizeAnswerCharacters(String value) {
+        return java.text.Normalizer.normalize(value, java.text.Normalizer.Form.NFKC)
+                .replace('，', ',')
+                .replace('；', ';')
+                .replace('：', ':')
+                .replace('（', '(')
+                .replace('）', ')')
+                .replace('【', '[')
+                .replace('】', ']')
+                .replace('。', '.')
+                .replace('、', ',')
+                .replaceAll("[“”]", "\"")
+                .replaceAll("[‘’]", "'");
+    }
+
+    private String normalizeTrueFalseToken(String value) {
+        return switch (value) {
+            case "正确", "对", "是", "YES", "TRUE", "T", "√", "✓", "A" -> "TRUE";
+            case "错误", "错", "否", "NO", "FALSE", "F", "×", "X", "B" -> "FALSE";
+            default -> value;
+        };
     }
 
     private String normalizeMode(String mode) {

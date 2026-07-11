@@ -18,6 +18,12 @@ public class UserResponse {
     private String bio;
     private String avatar;
     private String profileBackground;
+    private String profileSignature;
+    private String profileCoverText;
+    private String profileAge;
+    private String profileOccupation;
+    private String profilePhone;
+    private String profileQq;
     private Integer status;
 
     // 角色列表用于前端判断是否显示管理员菜单。
@@ -26,7 +32,7 @@ public class UserResponse {
     // 注册时间可以展示在个人中心。
     private LocalDateTime createdAt;
 
-    public UserResponse(Long id, String username, String email, String nickname, String bio, String avatar, String profileBackground, Integer status, List<String> roles, LocalDateTime createdAt) {
+    public UserResponse(Long id, String username, String email, String nickname, String bio, String avatar, String profileBackground, String profileSignature, String profileCoverText, String profileAge, String profileOccupation, String profilePhone, String profileQq, Integer status, List<String> roles, LocalDateTime createdAt) {
         this.id = id;
         this.username = username;
         this.email = email;
@@ -34,6 +40,12 @@ public class UserResponse {
         this.bio = bio;
         this.avatar = avatar;
         this.profileBackground = profileBackground;
+        this.profileSignature = profileSignature;
+        this.profileCoverText = profileCoverText;
+        this.profileAge = profileAge;
+        this.profileOccupation = profileOccupation;
+        this.profilePhone = profilePhone;
+        this.profileQq = profileQq;
         this.status = status;
         this.roles = roles;
         this.createdAt = createdAt;
@@ -65,6 +77,30 @@ public class UserResponse {
 
     public String getProfileBackground() {
         return profileBackground;
+    }
+
+    public String getProfileSignature() {
+        return profileSignature;
+    }
+
+    public String getProfileCoverText() {
+        return profileCoverText;
+    }
+
+    public String getProfileAge() {
+        return profileAge;
+    }
+
+    public String getProfileOccupation() {
+        return profileOccupation;
+    }
+
+    public String getProfilePhone() {
+        return profilePhone;
+    }
+
+    public String getProfileQq() {
+        return profileQq;
     }
 
     public Integer getStatus() {

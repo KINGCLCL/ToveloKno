@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class StudyLinkOverviewService {
 
     private static final String RESOURCE_EXCERPT = "RESOURCE_EXCERPT";
+    private static final String AI_ASSISTANT = "AI_ASSISTANT";
 
     private final LearningResourceRepository learningResourceRepository;
     private final QuestionRepository questionRepository;
@@ -36,7 +37,8 @@ public class StudyLinkOverviewService {
         long questionCount = questionRepository.countByCreatedByAndDeletedFalse(userId);
         long resourceQuestionCount = questionRepository.countByCreatedByAndDeletedFalseAndSourceType(
                 userId,
-                RESOURCE_EXCERPT);
+                RESOURCE_EXCERPT)
+                + questionRepository.countByCreatedByAndDeletedFalseAndSourceType(userId, AI_ASSISTANT);
         long activeWrongCount = wrongQuestionRepository.findWrongQuestionList(userId, 0).size();
         long pendingPlanCount = studyPlanRepository.countByUserIdAndStatus(userId, "pending");
 

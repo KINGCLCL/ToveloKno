@@ -28,6 +28,24 @@ public class UpdateUserProfileRequest {
     @Size(max = 255, message = "主页背景地址长度不能超过255")
     private String profileBackground;
 
+    @Size(max = 160, message = "签名不能超过160字")
+    private String profileSignature;
+
+    @Size(max = 160, message = "头图文案不能超过160字")
+    private String profileCoverText;
+
+    @Size(max = 20, message = "年龄不能超过20个字符")
+    private String profileAge;
+
+    @Size(max = 80, message = "职业不能超过80个字符")
+    private String profileOccupation;
+
+    @Size(max = 40, message = "电话不能超过40个字符")
+    private String profilePhone;
+
+    @Size(max = 40, message = "QQ不能超过40个字符")
+    private String profileQq;
+
     public String getEmail() {
         return email;
     }
@@ -66,5 +84,53 @@ public class UpdateUserProfileRequest {
 
     public void setProfileBackground(String profileBackground) {
         this.profileBackground = profileBackground;
+    }
+
+    public String getProfileSignature() {
+        return profileSignature;
+    }
+
+    public void setProfileSignature(String profileSignature) {
+        this.profileSignature = profileSignature;
+    }
+
+    public String getProfileCoverText() {
+        return profileCoverText;
+    }
+
+    public void setProfileCoverText(String profileCoverText) {
+        this.profileCoverText = profileCoverText;
+    }
+
+    public String getProfileAge() {
+        return profileAge;
+    }
+
+    public void setProfileAge(String profileAge) {
+        this.profileAge = profileAge;
+    }
+
+    public String getProfileOccupation() {
+        return profileOccupation;
+    }
+
+    public void setProfileOccupation(String profileOccupation) {
+        this.profileOccupation = profileOccupation;
+    }
+
+    public String getProfilePhone() {
+        return profilePhone;
+    }
+
+    public void setProfilePhone(String profilePhone) {
+        this.profilePhone = profilePhone;
+    }
+
+    public String getProfileQq() {
+        return profileQq;
+    }
+
+    public void setProfileQq(String profileQq) {
+        this.profileQq = profileQq;
     }
 }

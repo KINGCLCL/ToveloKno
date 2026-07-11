@@ -24,4 +24,6 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     // 修改资料时判断邮箱是否被其他用户占用。
     boolean existsByEmailAndIdNot(String email, Long id);
+
+    long countByStatus(Integer status);
 }

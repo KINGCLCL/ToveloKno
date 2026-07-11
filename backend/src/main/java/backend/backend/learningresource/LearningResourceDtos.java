@@ -73,6 +73,8 @@ public final class LearningResourceDtos {
             @Size(max = 120) String title,
             @Size(max = 2_000_000) String imageDataUrl,
             @Size(max = 500) String imageUrl,
+            @Size(max = 1000) String correctAnswer,
+            Long categoryId,
             @Min(1) Integer sourcePage,
             QuestionStatus status) {
     }

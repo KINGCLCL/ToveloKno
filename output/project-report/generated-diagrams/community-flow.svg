@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="720" viewBox="0 0 1120 720">
+    <defs>
+    <filter id="rough"><feTurbulence type="fractalNoise" baseFrequency="0.018" numOctaves="2" result="noise"/><feDisplacementMap in="SourceGraphic" in2="noise" scale="1.8"/></filter>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="9" refY="4" orient="auto"><path d="M0,0 L10,4 L0,8" fill="#202124"/></marker>
+  </defs>
+  <rect width="100%" height="100%" fill="#fbfcff"/>
+  <path d="M20 25 C250 4, 420 28, 620 18 S980 8, 1096 28" fill="none" stroke="#dce7ff" stroke-width="4" opacity=".65"/>
+  <path d="M10 678 C250 702, 470 665, 760 692 S1040 702, 1090 676" fill="none" stroke="#ffe7ef" stroke-width="5" opacity=".7"/>
+    <text x="42" y="58" font-family="KaiTi, STKaiti, SimSun" font-size="34" font-weight="700" fill="#202124">资源分享与论坛互动流程</text>
+    <g filter="url(#rough)">
+      <rect x="70" y="120" width="240" height="84" rx="14" fill="#eef5ff" stroke="#202124" stroke-width="3"/>
+      <text x="190" y="154" dominant-baseline="middle" text-anchor="middle" font-family="KaiTi, STKaiti, SimSun" font-size="28" font-weight="500" fill="#202124">用户上传资源</text>
+      <text x="190" y="186" dominant-baseline="middle" text-anchor="middle" font-family="KaiTi, STKaiti, SimSun" font-size="18" fill="#4b5568">标题/分类/文件/链接/封面</text>
+    </g><g filter="url(#rough)">
+      <rect x="430" y="120" width="260" height="84" rx="14" fill="#fff4fa" stroke="#202124" stroke-width="3"/>
+      <text x="560" y="154" dominant-baseline="middle" text-anchor="middle" font-family="KaiTi, STKaiti, SimSun" font-size="28" font-weight="500" fill="#202124">资源广场</text>
+      <text x="560" y="186" dominant-baseline="middle" text-anchor="middle" font-family="KaiTi, STKaiti, SimSun" font-size="18" fill="#4b5568">分类筛选、播放、收藏、点赞</text>
+    </g><g filter="url(#rough)">
+      <rect x="820" y="120" width="240" height="84" rx="14" fill="#eefbf8" stroke="#202124" stroke-width="3"/>
+      <text x="940" y="154" dominant-baseline="middle" text-anchor="middle" font-family="KaiTi, STKaiti, SimSun" font-size="28" font-weight="500" fill="#202124">收藏页面</text>
+      <text x="940" y="186" dominant-baseline="middle" text-anchor="middle" font-family="KaiTi, STKaiti, SimSun" font-size="18" fill="#4b5568">shared_resource_favorite</text>
+    </g><g filter="url(#rough)">
+      <rect x="110" y="355" width="250" height="84" rx="14" fill="#fff4fa" stroke="#202124" stroke-width="3"/>
+      <text x="235" y="389" dominant-baseline="middle" text-anchor="middle" font-family="KaiTi, STKaiti, SimSun" font-size="28" font-weight="500" fill="#202124">发布主题</text>
+      <text x="235" y="421" dominant-baseline="middle" text-anchor="middle" font-family="KaiTi, STKaiti, SimSun" font-size="18" fill="#4b5568">NGA 风格板块与帖子</text>
+    </g><g filter="url(#rough)">
+      <rect x="455" y="355" width="250" height="84" rx="14" fill="#eefbf8" stroke="#202124" stroke-width="3"/>
+      <text x="580" y="389" dominant-baseline="middle" text-anchor="middle" font-family="KaiTi, STKaiti, SimSun" font-size="28" font-weight="500" fill="#202124">回复 / 浏览 / 点赞</text>
+      <text x="580" y="421" dominant-baseline="middle" text-anchor="middle" font-family="KaiTi, STKaiti, SimSun" font-size="18" fill="#4b5568">reply_count / like_count</text>
+    </g><g filter="url(#rough)">
+      <rect x="790" y="355" width="250" height="84" rx="14" fill="#fff8e8" stroke="#202124" stroke-width="3"/>
+      <text x="915" y="389" dominant-baseline="middle" text-anchor="middle" font-family="KaiTi, STKaiti, SimSun" font-size="28" font-weight="500" fill="#202124">个人学习资产</text>
+      <text x="915" y="421" dominant-baseline="middle" text-anchor="middle" font-family="KaiTi, STKaiti, SimSun" font-size="18" fill="#4b5568">账号维度统一关联</text>
+    </g><g filter="url(#rough)">
+      <rect x="420" y="560" width="280" height="78" rx="14" fill="#eef5ff" stroke="#202124" stroke-width="3"/>
+      <text x="560" y="591" dominant-baseline="middle" text-anchor="middle" font-family="KaiTi, STKaiti, SimSun" font-size="28" font-weight="500" fill="#202124">首页与学习中枢</text>
+      <text x="560" y="623" dominant-baseline="middle" text-anchor="middle" font-family="KaiTi, STKaiti, SimSun" font-size="18" fill="#4b5568">最近资料、错题、计划</text>
+    </g>
+    <path filter="url(#rough)" d="M310 162 C350 162, 385 162, 430 162" fill="none" stroke="#202124" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/><path filter="url(#rough)" d="M690 162 C735 162, 775 162, 820 162" fill="none" stroke="#202124" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/><path filter="url(#rough)" d="M240 204 C235 275, 245 310, 270 355" fill="none" stroke="#202124" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/><path filter="url(#rough)" d="M360 397 C400 397, 420 397, 455 397" fill="none" stroke="#202124" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/><path filter="url(#rough)" d="M705 397 C740 397, 760 397, 790 397" fill="none" stroke="#202124" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/><path filter="url(#rough)" d="M915 439 C820 515, 690 520, 630 560" fill="none" stroke="#202124" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/><path filter="url(#rough)" d="M580 439 C575 500, 570 520, 565 560" fill="none" stroke="#202124" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+    
+  </svg>

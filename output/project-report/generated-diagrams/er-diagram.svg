@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="850" viewBox="0 0 1400 850">
+    <defs>
+    <filter id="rough"><feTurbulence type="fractalNoise" baseFrequency="0.018" numOctaves="2" result="noise"/><feDisplacementMap in="SourceGraphic" in2="noise" scale="1.8"/></filter>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="9" refY="4" orient="auto"><path d="M0,0 L10,4 L0,8" fill="#202124"/></marker>
+  </defs>
+  <rect width="100%" height="100%" fill="#fbfcff"/>
+  <path d="M20 25 C250 4, 420 28, 620 18 S980 8, 1376 28" fill="none" stroke="#dce7ff" stroke-width="4" opacity=".65"/>
+  <path d="M10 808 C250 832, 470 795, 760 822 S1040 832, 1370 806" fill="none" stroke="#ffe7ef" stroke-width="5" opacity=".7"/>
+    <text x="42" y="58" font-family="KaiTi, STKaiti, SimSun" font-size="34" font-weight="700" fill="#202124">ToveloKno 核心 ER 图</text>
+    <g filter="url(#rough)">
+      <rect x="570" y="80" width="230" height="78" rx="14" fill="#fff8e8" stroke="#202124" stroke-width="3"/>
+      <text x="685" y="111" dominant-baseline="middle" text-anchor="middle" font-family="KaiTi, STKaiti, SimSun" font-size="28" font-weight="500" fill="#202124">user</text>
+      <text x="685" y="143" dominant-baseline="middle" text-anchor="middle" font-family="KaiTi, STKaiti, SimSun" font-size="18" fill="#4b5568">id, username, profile...</text>
+    </g><g filter="url(#rough)">
+      <rect x="80" y="250" width="260" height="82" rx="14" fill="#fff4fa" stroke="#202124" stroke-width="3"/>
+      <text x="210" y="283" dominant-baseline="middle" text-anchor="middle" font-family="KaiTi, STKaiti, SimSun" font-size="28" font-weight="500" fill="#202124">learning_resource</text>
+      <text x="210" y="315" dominant-baseline="middle" text-anchor="middle" font-family="KaiTi, STKaiti, SimSun" font-size="18" fill="#4b5568">user_id, file_url, progress</text>
+    </g><g filter="url(#rough)">
+      <rect x="400" y="250" width="250" height="82" rx="14" fill="#eefbf8" stroke="#202124" stroke-width="3"/>
+      <text x="525" y="283" dominant-baseline="middle" text-anchor="middle" font-family="KaiTi, STKaiti, SimSun" font-size="28" font-weight="500" fill="#202124">question</text>
+      <text x="525" y="315" dominant-baseline="middle" text-anchor="middle" font-family="KaiTi, STKaiti, SimSun" font-size="18" fill="#4b5568">created_by, category_id, answer</text>
+    </g><g filter="url(#rough)">
+      <rect x="720" y="250" width="240" height="82" rx="14" fill="#eef5ff" stroke="#202124" stroke-width="3"/>
+      <text x="840" y="283" dominant-baseline="middle" text-anchor="middle" font-family="KaiTi, STKaiti, SimSun" font-size="28" font-weight="500" fill="#202124">category / tag</text>
+      <text x="840" y="315" dominant-baseline="middle" text-anchor="middle" font-family="KaiTi, STKaiti, SimSun" font-size="18" fill="#4b5568">created_by, parent_id</text>
+    </g><g filter="url(#rough)">
+      <rect x="1050" y="250" width="250" height="82" rx="14" fill="#fff4fa" stroke="#202124" stroke-width="3"/>
+      <text x="1175" y="283" dominant-baseline="middle" text-anchor="middle" font-family="KaiTi, STKaiti, SimSun" font-size="28" font-weight="500" fill="#202124">study_plan</text>
+      <text x="1175" y="315" dominant-baseline="middle" text-anchor="middle" font-family="KaiTi, STKaiti, SimSun" font-size="18" fill="#4b5568">user_id, target_type, status</text>
+    </g><g filter="url(#rough)">
+      <rect x="245" y="470" width="260" height="82" rx="14" fill="#eefbf8" stroke="#202124" stroke-width="3"/>
+      <text x="375" y="503" dominant-baseline="middle" text-anchor="middle" font-family="KaiTi, STKaiti, SimSun" font-size="28" font-weight="500" fill="#202124">answer_record</text>
+      <text x="375" y="535" dominant-baseline="middle" text-anchor="middle" font-family="KaiTi, STKaiti, SimSun" font-size="18" fill="#4b5568">user_id, question_id, correct</text>
+    </g><g filter="url(#rough)">
+      <rect x="565" y="470" width="260" height="82" rx="14" fill="#fff4fa" stroke="#202124" stroke-width="3"/>
+      <text x="695" y="503" dominant-baseline="middle" text-anchor="middle" font-family="KaiTi, STKaiti, SimSun" font-size="28" font-weight="500" fill="#202124">wrong_question</text>
+      <text x="695" y="535" dominant-baseline="middle" text-anchor="middle" font-family="KaiTi, STKaiti, SimSun" font-size="18" fill="#4b5568">user_id, question_id, wrong_count</text>
+    </g><g filter="url(#rough)">
+      <rect x="890" y="470" width="260" height="82" rx="14" fill="#fff4fa" stroke="#202124" stroke-width="3"/>
+      <text x="1020" y="503" dominant-baseline="middle" text-anchor="middle" font-family="KaiTi, STKaiti, SimSun" font-size="28" font-weight="500" fill="#202124">shared_resource</text>
+      <text x="1020" y="535" dominant-baseline="middle" text-anchor="middle" font-family="KaiTi, STKaiti, SimSun" font-size="18" fill="#4b5568">owner_id, category, file_url</text>
+    </g><g filter="url(#rough)">
+      <rect x="250" y="675" width="260" height="82" rx="14" fill="#eefbf8" stroke="#202124" stroke-width="3"/>
+      <text x="380" y="708" dominant-baseline="middle" text-anchor="middle" font-family="KaiTi, STKaiti, SimSun" font-size="28" font-weight="500" fill="#202124">forum_thread</text>
+      <text x="380" y="740" dominant-baseline="middle" text-anchor="middle" font-family="KaiTi, STKaiti, SimSun" font-size="18" fill="#4b5568">user_id, board_id, counts</text>
+    </g><g filter="url(#rough)">
+      <rect x="565" y="675" width="260" height="82" rx="14" fill="#eef5ff" stroke="#202124" stroke-width="3"/>
+      <text x="695" y="708" dominant-baseline="middle" text-anchor="middle" font-family="KaiTi, STKaiti, SimSun" font-size="28" font-weight="500" fill="#202124">forum_reply</text>
+      <text x="695" y="740" dominant-baseline="middle" text-anchor="middle" font-family="KaiTi, STKaiti, SimSun" font-size="18" fill="#4b5568">thread_id, user_id, content</text>
+    </g><g filter="url(#rough)">
+      <rect x="890" y="675" width="260" height="82" rx="14" fill="#eef5ff" stroke="#202124" stroke-width="3"/>
+      <text x="1020" y="708" dominant-baseline="middle" text-anchor="middle" font-family="KaiTi, STKaiti, SimSun" font-size="28" font-weight="500" fill="#202124">favorite / like</text>
+      <text x="1020" y="740" dominant-baseline="middle" text-anchor="middle" font-family="KaiTi, STKaiti, SimSun" font-size="18" fill="#4b5568">resource_id / thread_id</text>
+    </g>
+    <path filter="url(#rough)" d="M600 158 C470 210, 300 210, 220 250" fill="none" stroke="#202124" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/><path filter="url(#rough)" d="M650 158 C595 205, 550 215, 525 250" fill="none" stroke="#202124" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/><path filter="url(#rough)" d="M735 158 C770 195, 815 210, 840 250" fill="none" stroke="#202124" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/><path filter="url(#rough)" d="M800 150 C950 185, 1110 205, 1175 250" fill="none" stroke="#202124" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/><path filter="url(#rough)" d="M525 332 C470 385, 410 425, 380 470" fill="none" stroke="#202124" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/><path filter="url(#rough)" d="M540 332 C605 385, 650 425, 695 470" fill="none" stroke="#202124" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/><path filter="url(#rough)" d="M1045 552 C990 600, 955 635, 1020 675" fill="none" stroke="#202124" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/><path filter="url(#rough)" d="M380 552 C365 610, 365 635, 380 675" fill="none" stroke="#202124" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/><path filter="url(#rough)" d="M695 552 C695 610, 695 635, 695 675" fill="none" stroke="#202124" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/><path filter="url(#rough)" d="M510 716 C535 716, 545 716, 565 716" fill="none" stroke="#202124" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/><path filter="url(#rough)" d="M825 716 C850 716, 865 716, 890 716" fill="none" stroke="#202124" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/><path filter="url(#rough)" d="M1020 552 C940 590, 815 605, 695 675" fill="none" stroke="#202124" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+    <text x="465" y="810" font-family="KaiTi, STKaiti, SimSun" font-size="24" fill="#4b5568">所有学习资产都以 user_id / created_by 隔离到当前账号</text>
+  </svg>

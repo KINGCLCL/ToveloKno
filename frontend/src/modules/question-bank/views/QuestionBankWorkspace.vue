@@ -185,12 +185,12 @@
               <div class="bank-card-head compact"><div><h2>科目分类树</h2><span>选择节点可快速筛选</span></div><button type="button" class="bank-mini-add" title="新增一级分类" @click="openCategoryEditor()">＋</button></div>
               <label class="bank-inner-search"><LineIcon name="search" /><input v-model.trim="categoryKeyword" type="search" placeholder="搜索分类" /></label>
               <div class="bank-tree">
-                <button type="button" :class="{ active: selectedCategory === null }" @click="selectedCategory = null"><span><LineIcon name="layers" />全部分类</span><small>{{ classificationSummary.categoryCount }}</small></button>
+                <button type="button" :class="{ active: normalizeId(selectedCategory) === null }" @click="selectedCategory = null"><span><LineIcon name="layers" />全部分类</span><small>{{ classificationSummary.categoryCount }}</small></button>
                 <button
                   v-for="node in flattenedCategoryTree"
                   :key="node.id"
                   type="button"
-                  :class="{ active: selectedCategory === node.id, muted: !node.active }"
+                  :class="{ active: normalizeId(selectedCategory) === node.id, muted: !node.active }"
                   :style="{ paddingLeft: `${12 + node.depth * 20}px` }"
                   :title="node.children?.length ? '单击展开或收起，双击查看分类题目' : '双击查看分类题目'"
                   @click="toggleCategoryNode(node)"
@@ -312,7 +312,11 @@
                       :key="`${currentPracticeQuestion.id}-${index}`"
                       type="button"
                       :disabled="practiceAnswerRevealed"
-                      :class="{ selected: isPracticeOptionSelected(index) }"
+                      :class="{
+                        selected: isPracticeOptionSelected(index),
+                        correct: isPracticeOptionCorrect(index),
+                        wrong: isPracticeOptionWrong(index),
+                      }"
                       @click="togglePracticeOption(index)"
                     >
                       <b>{{ String.fromCharCode(65 + index) }}</b><span>{{ option }}</span>
@@ -334,20 +338,24 @@
                       :disabled="practiceAnswerRevealed"
                       rows="4"
                       maxlength="1000"
-                      placeholder="可以写答案，也可以先在心里作答后直接查看答案"
+                      placeholder="输入答案后系统会自动判定；不填可直接查看答案"
                     />
                   </label>
                   <section v-if="practiceAnswerRevealed" class="bank-answer-result reveal" :class="{ correct: practiceResult?.correct, wrong: practiceResult && !practiceResult.correct }">
-                    <h4>官方答案</h4>
+                    <h4>{{ practiceResult ? (practiceResult.correct ? '判题正确' : '判题错误') : '官方答案' }}</h4>
                     <p><strong>你的作答：</strong>{{ practiceDisplayAnswer }}</p>
                     <p><strong>正确答案：</strong>{{ currentPracticeQuestion.correctAnswer || '暂无答案' }}</p>
                     <p><strong>答案解析：</strong>{{ currentPracticeQuestion.analysis || '暂无解析' }}</p>
                     <small v-if="!practiceResult">看完答案后，请按真实情况自评；点“我答错了”会进入错题本。</small>
-                    <small v-else>{{ practiceResult.correct ? '已记录为正确' : '已记录为错误，并放入错题本' }}</small>
+                    <small v-else>{{ practiceResult.correct ? '已自动判定并记录为正确' : '已自动判定并记录为错误，已放入错题本' }}</small>
                   </section>
                   <p v-if="practiceError" class="bank-form-error">{{ practiceError }}</p>
                   <footer class="bank-practice-actions">
-                    <button v-if="!practiceAnswerRevealed" class="bank-btn primary" type="submit"><LineIcon name="eye" />查看答案</button>
+                    <button v-if="!practiceAnswerRevealed" class="bank-btn primary" type="submit" :disabled="answerSubmitting">
+                      <span v-if="answerSubmitting" class="bank-spinner small" />
+                      <LineIcon v-else :name="canAutoJudgeCurrentQuestion ? 'check-square' : 'eye'" />
+                      {{ answerSubmitting ? '判题中...' : practicePrimaryActionLabel }}
+                    </button>
                     <template v-else-if="!practiceResult">
                       <button class="bank-btn judge-correct" type="button" :disabled="answerSubmitting" @click="judgeCurrentAnswer(true)"><LineIcon name="check-square" />我答对了</button>
                       <button class="bank-btn judge-wrong" type="button" :disabled="answerSubmitting" @click="judgeCurrentAnswer(false)"><LineIcon name="x-circle" />我答错了</button>
@@ -358,7 +366,7 @@
                 <section v-else class="bank-practice-empty">
                   <LineIcon name="target" />
                   <strong>还没有练习卷</strong>
-                  <span>先归档题目，然后点击“开始做题”。作答后自己判对错，判错的题会进入错题本。</span>
+                  <span>先归档题目，然后点击“开始做题”。提交作答后系统会自动判对错，判错的题会进入错题本。</span>
                 </section>
               </article>
 
@@ -771,11 +779,19 @@ const practiceSessionAccuracy = computed(() => {
   if (!practiceSession.judged) return 0
   return Math.round((practiceSession.correct * 100) / practiceSession.judged)
 })
+const hasPracticeAnswer = computed(() => practiceAnswer.value.trim().length > 0)
+const canAutoJudgeCurrentQuestion = computed(() => {
+  const question = currentPracticeQuestion.value
+  if (!question?.correctAnswer || !hasPracticeAnswer.value) return false
+  return ['SINGLE_CHOICE', 'MULTIPLE_CHOICE', 'TRUE_FALSE', 'FILL_BLANK', 'SHORT_ANSWER'].includes(question.questionType)
+})
+const practicePrimaryActionLabel = computed(() => (canAutoJudgeCurrentQuestion.value ? '提交判题' : '查看答案'))
 const practiceDisplayAnswer = computed(() => {
   if (practiceAnswer.value) return practiceAnswer.value
   if (practiceNote.value) return practiceNote.value
   return '未填写'
 })
+const normalizedPracticeCorrectAnswer = computed(() => normalizePracticeChoiceAnswer(currentPracticeQuestion.value?.correctAnswer || ''))
 const analyticsStatCards = computed(() => [
   { label: '题目总数', value: analyticsData.summary.totalQuestions.toLocaleString(), unit: '题', note: '当前有效题目', icon: 'book-open' },
   { label: '已练题目', value: analyticsData.summary.answeredQuestions.toLocaleString(), unit: '题', note: '去重统计', icon: 'check-square' },
@@ -831,10 +847,15 @@ const flattenedCategoryTree = computed(() => {
   const filtered = filterCategoryNodes(categoryTree.value, keyword)
   return flattenCategoryNodes(filtered, 0, Boolean(keyword))
 })
-const selectedCategoryRow = computed(() => categoryRows.value.find((row) => row.id === selectedCategory.value))
+const selectedCategoryRow = computed(() => {
+  const categoryId = normalizeId(selectedCategory.value)
+  if (categoryId === null) return null
+  return categoryRows.value.find((row) => row.id === categoryId) || null
+})
 const selectedCategoryIds = computed(() => {
-  if (selectedCategory.value === null) return null
-  const result = new Set([selectedCategory.value])
+  const categoryId = normalizeId(selectedCategory.value)
+  if (categoryId === null) return null
+  const result = new Set([categoryId])
   let changed = true
   while (changed) {
     changed = false
@@ -851,7 +872,7 @@ const filteredCategoryRows = computed(() => {
   const keyword = categoryTableKeyword.value.toLowerCase()
   return categoryRows.value.filter((row) => {
     const matchesKeyword = !keyword
-      || row.name.toLowerCase().includes(keyword)
+      || (row.name || '').toLowerCase().includes(keyword)
       || (row.description || '').toLowerCase().includes(keyword)
       || (row.parentName || '').toLowerCase().includes(keyword)
     const matchesSelection = selectedCategoryIds.value === null || selectedCategoryIds.value.has(row.id)
@@ -863,7 +884,7 @@ const filteredKnowledgePointRows = computed(() => {
   const selectedName = selectedCategoryRow.value?.name
   return knowledgePointRows.value.filter((row) => {
     const matchesKeyword = !keyword
-      || row.name.toLowerCase().includes(keyword)
+      || (row.name || '').toLowerCase().includes(keyword)
       || (row.subject || '').toLowerCase().includes(keyword)
     const matchesSelection = !selectedName || row.subject === selectedName
     return matchesKeyword && matchesSelection
@@ -872,17 +893,17 @@ const filteredKnowledgePointRows = computed(() => {
 const filteredTagRows = computed(() => {
   const keyword = categoryTableKeyword.value.toLowerCase()
   return tagRows.value.filter((row) => !keyword
-    || row.name.toLowerCase().includes(keyword)
+    || (row.name || '').toLowerCase().includes(keyword)
     || (row.description || '').toLowerCase().includes(keyword))
 })
 const filteredDifficultyRows = computed(() => {
   const keyword = categoryTableKeyword.value.toLowerCase()
   return difficultyRows.value.filter((row) => !keyword
-    || row.label.toLowerCase().includes(keyword)
+    || (row.label || '').toLowerCase().includes(keyword)
     || String(row.level).includes(keyword))
 })
 const activeCategoryOptions = computed(() => categoryRows.value.filter(
-  (category) => category.active || category.id === questionForm.categoryId,
+  (category) => category.active || category.id === normalizeId(questionForm.categoryId),
 ))
 const availableParentCategories = computed(() => {
   if (!editingClassificationId.value) return categoryRows.value
@@ -958,12 +979,116 @@ function selectNav(id) {
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
+function normalizeId(value) {
+  if (value === null || value === undefined || value === '') return null
+  const numberValue = Number(value)
+  return Number.isFinite(numberValue) ? numberValue : value
+}
+
+function normalizeNullableId(value) {
+  const normalized = normalizeId(value)
+  return normalized === null ? null : normalized
+}
+
+function normalizeCategoryItem(category = {}) {
+  const id = normalizeId(category.id)
+  const parentId = normalizeNullableId(category.parentId)
+  return {
+    id,
+    name: category.name || '',
+    description: category.description || '',
+    parentId,
+    parentName: category.parentName || '',
+    active: category.active !== false,
+    sortOrder: Number(category.sortOrder ?? 0),
+    questionCount: Number(category.questionCount ?? 0),
+    updatedAt: category.updatedAt || new Date().toISOString(),
+  }
+}
+
+function normalizeCategoryNode(node = {}) {
+  const children = (node.children || []).map(normalizeCategoryNode)
+  const questionCount = Number(node.questionCount ?? 0)
+  return {
+    id: normalizeId(node.id),
+    name: node.name || '',
+    active: node.active !== false,
+    questionCount,
+    totalQuestionCount: Number(node.totalQuestionCount ?? (questionCount + children.reduce((sum, child) => sum + child.totalQuestionCount, 0))),
+    children,
+  }
+}
+
+function buildCategoryTreeFromRows(rows) {
+  const nodesById = new Map(rows.map((row) => [
+    row.id,
+    {
+      id: row.id,
+      name: row.name,
+      active: row.active,
+      questionCount: Number(row.questionCount || 0),
+      totalQuestionCount: Number(row.questionCount || 0),
+      children: [],
+    },
+  ]))
+  const roots = []
+  rows.forEach((row) => {
+    const node = nodesById.get(row.id)
+    const parent = row.parentId === null ? null : nodesById.get(row.parentId)
+    if (parent) parent.children.push(node)
+    else roots.push(node)
+  })
+  const applyTotals = (node) => {
+    node.totalQuestionCount = node.questionCount + node.children.reduce((sum, child) => sum + applyTotals(child), 0)
+    return node.totalQuestionCount
+  }
+  roots.forEach(applyTotals)
+  return roots
+}
+
+function applyCategoryRows(rows = []) {
+  categoryRows.value = rows.map(normalizeCategoryItem).filter((category) => category.id !== null)
+}
+
+function applyCategoryTree(nodes = []) {
+  const normalized = nodes.map(normalizeCategoryNode).filter((node) => node.id !== null)
+  categoryTree.value = normalized.length ? normalized : buildCategoryTreeFromRows(categoryRows.value)
+}
+
+function upsertCategoryRow(category) {
+  const normalized = normalizeCategoryItem(category)
+  if (normalized.id === null) return null
+  const existingIndex = categoryRows.value.findIndex((row) => row.id === normalized.id)
+  if (existingIndex >= 0) categoryRows.value.splice(existingIndex, 1, normalized)
+  else categoryRows.value.push(normalized)
+  categoryTree.value = buildCategoryTreeFromRows(categoryRows.value)
+  return normalized
+}
+
+function revealCategory(category) {
+  if (!category?.id) return
+  categoryTab.value = '科目管理'
+  categoryKeyword.value = ''
+  categoryTableKeyword.value = ''
+  selectedCategory.value = category.id
+  const next = new Set(expandedCategoryIds.value)
+  let parentId = category.parentId
+  while (parentId !== null && parentId !== undefined) {
+    next.add(parentId)
+    const parent = categoryRows.value.find((item) => item.id === parentId)
+    parentId = parent?.parentId
+  }
+  if (category.parentId !== null && category.parentId !== undefined) next.add(category.parentId)
+  else next.add(category.id)
+  expandedCategoryIds.value = next
+}
+
 function filterCategoryNodes(nodes, keyword) {
   if (!keyword) return nodes
   return nodes.map((node) => {
     const children = filterCategoryNodes(node.children || [], keyword)
     return { ...node, children }
-  }).filter((node) => node.name.toLowerCase().includes(keyword) || node.children.length)
+  }).filter((node) => (node.name || '').toLowerCase().includes(keyword) || node.children.length)
 }
 
 function flattenCategoryNodes(nodes, depth = 0, forceExpanded = false) {
@@ -976,7 +1101,7 @@ function flattenCategoryNodes(nodes, depth = 0, forceExpanded = false) {
 }
 
 function isCategoryExpanded(categoryId) {
-  return expandedCategoryIds.value.has(categoryId)
+  return expandedCategoryIds.value.has(normalizeId(categoryId))
 }
 
 function toggleCategoryNode(node) {
@@ -989,12 +1114,13 @@ function toggleCategoryNode(node) {
 }
 
 function openCategoryQuestionsById(categoryId) {
-  const category = categoryRows.value.find((item) => item.id === categoryId)
+  const normalizedId = normalizeId(categoryId)
+  const category = categoryRows.value.find((item) => item.id === normalizedId)
   if (category) openCategoryQuestions(category)
 }
 
 function openCategoryQuestions(category) {
-  filters.categoryId = category.id
+  filters.categoryId = normalizeNullableId(category.id)
   filters.subject = ''
   questionKeyword.value = ''
   globalKeyword.value = ''
@@ -1006,11 +1132,12 @@ function openCategoryQuestions(category) {
 
 function collectDescendantCategoryIds(categoryId) {
   const result = new Set()
+  const rootId = normalizeId(categoryId)
   let changed = true
   while (changed) {
     changed = false
     categoryRows.value.forEach((category) => {
-      if ((category.parentId === categoryId || result.has(category.parentId)) && !result.has(category.id)) {
+      if ((category.parentId === rootId || result.has(category.parentId)) && !result.has(category.id)) {
         result.add(category.id)
         changed = true
       }
@@ -1121,16 +1248,18 @@ function categoryOptionLabel(category) {
 }
 
 function categoryTotalQuestionCount(categoryId) {
+  const normalizedId = normalizeId(categoryId)
   const stack = [...categoryTree.value]
   while (stack.length) {
     const node = stack.shift()
-    if (node.id === categoryId) return node.totalQuestionCount
+    if (node.id === normalizedId) return node.totalQuestionCount
     stack.push(...(node.children || []))
   }
-  return categoryRows.value.find((category) => category.id === categoryId)?.questionCount || 0
+  return categoryRows.value.find((category) => category.id === normalizedId)?.questionCount || 0
 }
 
 function syncQuestionSubject() {
+  questionForm.categoryId = normalizeNullableId(questionForm.categoryId)
   const category = categoryRows.value.find((item) => item.id === questionForm.categoryId)
   if (category) questionForm.subject = category.name
 }
@@ -1270,9 +1399,9 @@ async function loadClassificationOverview() {
   classificationLoading.value = true
   try {
     const response = await fetchClassificationOverview()
-    const data = response.data?.data || {}
-    categoryRows.value = data.categories || []
-    categoryTree.value = data.categoryTree || []
+    const data = response.data?.data || response.data || {}
+    applyCategoryRows(data.categories || [])
+    applyCategoryTree(data.categoryTree || [])
     knowledgePointRows.value = data.knowledgePoints || []
     tagRows.value = data.tags || []
     difficultyRows.value = data.difficulties || []
@@ -1292,7 +1421,7 @@ async function loadClassificationOverview() {
       classificationTreeInitialized.value = true
     }
     if (selectedCategory.value !== null
-      && !categoryRows.value.some((category) => category.id === selectedCategory.value)) {
+      && !categoryRows.value.some((category) => category.id === normalizeId(selectedCategory.value))) {
       selectedCategory.value = null
     }
   } catch (error) {
@@ -1307,12 +1436,13 @@ async function loadQuestions() {
   questionsLoading.value = true
   try {
     const statusMap = { 已归档: 'PUBLISHED', 已发布: 'PUBLISHED', 草稿: 'DRAFT' }
+    const filterCategoryId = normalizeNullableId(filters.categoryId)
     const response = await fetchQuestions({
       page: pagination.page,
       size: pagination.size,
       keyword: questionKeyword.value || globalKeyword.value || undefined,
       subject: filters.subject || undefined,
-      categoryId: filters.categoryId || undefined,
+      categoryId: filterCategoryId ?? undefined,
       questionType: filters.type || undefined,
       difficulty: filters.difficulty || undefined,
       status: statusMap[questionTab.value],
@@ -1383,10 +1513,11 @@ async function startPractice(mode, knowledgePoint = null) {
   practiceLoading.value = true
   practiceError.value = ''
   try {
+    const categoryId = normalizeNullableId(practiceConfig.categoryId)
     const response = await generatePractice({
       mode,
       count: practiceConfig.count,
-      categoryId: practiceConfig.categoryId,
+      categoryId,
       knowledgePoint: knowledgePoint || null,
     })
     practiceQuestions.value = response.data?.data || []
@@ -1415,6 +1546,35 @@ function isPracticeOptionSelected(index) {
   return practiceAnswer.value.split(',').includes(practiceOptionValue(index))
 }
 
+function normalizePracticeChoiceAnswer(value) {
+  return String(value || '')
+    .toUpperCase()
+    .replace(/[，；;]/g, ',')
+    .split(/[,\s]+/)
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .map(normalizePracticeTrueFalseToken)
+    .sort()
+    .join(',')
+}
+
+function normalizePracticeTrueFalseToken(value) {
+  const normalized = String(value || '').trim().toUpperCase()
+  if (['正确', '对', '是', 'YES', 'TRUE', 'T', '√', '✓', 'A'].includes(normalized)) return 'TRUE'
+  if (['错误', '错', '否', 'NO', 'FALSE', 'F', '×', 'X', 'B'].includes(normalized)) return 'FALSE'
+  return normalized
+}
+
+function isPracticeOptionCorrect(index) {
+  if (!practiceAnswerRevealed.value || !currentPracticeQuestion.value?.options?.length) return false
+  return normalizedPracticeCorrectAnswer.value.split(',').includes(normalizePracticeTrueFalseToken(practiceOptionValue(index)))
+}
+
+function isPracticeOptionWrong(index) {
+  if (!practiceAnswerRevealed.value || !practiceResult.value || !currentPracticeQuestion.value?.options?.length) return false
+  return isPracticeOptionSelected(index) && !isPracticeOptionCorrect(index)
+}
+
 function togglePracticeOption(index) {
   if (practiceAnswerRevealed.value) return
   const value = practiceOptionValue(index)
@@ -1428,14 +1588,23 @@ function togglePracticeOption(index) {
   practiceAnswer.value = [...selected].sort().join(',')
 }
 
-function revealPracticeAnswer() {
+async function revealPracticeAnswer() {
   if (!currentPracticeQuestion.value) return
+  if (canAutoJudgeCurrentQuestion.value) {
+    await submitCurrentAnswer(null)
+    return
+  }
   practiceAnswerRevealed.value = true
   practiceError.value = ''
 }
 
 async function judgeCurrentAnswer(selfCorrect) {
   if (!currentPracticeQuestion.value || !practiceAnswerRevealed.value || practiceResult.value) return
+  await submitCurrentAnswer(selfCorrect)
+}
+
+async function submitCurrentAnswer(selfCorrect = null) {
+  if (!currentPracticeQuestion.value || practiceResult.value || answerSubmitting.value) return
   answerSubmitting.value = true
   practiceError.value = ''
   try {
@@ -1446,12 +1615,14 @@ async function judgeCurrentAnswer(selfCorrect) {
       selfCorrect,
     })
     practiceResult.value = response.data?.data
+    practiceAnswerRevealed.value = true
+    const isCorrect = Boolean(practiceResult.value?.correct)
     practiceSession.judged += 1
-    if (selfCorrect) practiceSession.correct += 1
+    if (isCorrect) practiceSession.correct += 1
     else practiceSession.wrong += 1
     await Promise.all([loadPracticeDashboard(), loadAnalytics()])
   } catch (error) {
-    practiceError.value = readApiError(error, '记录自评失败')
+    practiceError.value = readApiError(error, '判题记录失败')
   } finally {
     answerSubmitting.value = false
   }
@@ -1561,7 +1732,7 @@ function resetQuestionForm(question = null) {
     subject: question?.subject || '',
     knowledgePoint: question?.knowledgePoint || '',
     status: question?.status || 'DRAFT',
-    categoryId: question?.categoryId ?? null,
+    categoryId: normalizeNullableId(question?.categoryId),
     sourceType: question?.sourceType || null,
     sourceResourceId: question?.sourceResourceId || null,
     sourceResourceName: question?.sourceResourceName || '',
@@ -1596,16 +1767,16 @@ function openCategoryEditor(category = null, parentId = null) {
   resetClassificationForm()
   classificationModalKind.value = 'category'
   if (category) {
-    editingClassificationId.value = category.id
+    editingClassificationId.value = normalizeId(category.id)
     Object.assign(classificationForm, {
       name: category.name,
       description: category.description || '',
-      parentId: category.parentId,
+      parentId: normalizeNullableId(category.parentId),
       active: category.active,
       sortOrder: category.sortOrder,
     })
   } else {
-    classificationForm.parentId = parentId
+    classificationForm.parentId = normalizeNullableId(parentId)
   }
   classificationModalOpen.value = true
 }
@@ -1648,17 +1819,21 @@ async function submitClassificationForm() {
       const payload = {
         name: classificationForm.name,
         description: classificationForm.description || null,
-        parentId: classificationForm.parentId,
+        parentId: normalizeNullableId(classificationForm.parentId),
         active: classificationForm.active,
         sortOrder: classificationForm.sortOrder,
       }
+      let savedCategory = null
       if (editingClassificationId.value) {
-        await updateClassificationCategory(editingClassificationId.value, payload)
+        const response = await updateClassificationCategory(editingClassificationId.value, payload)
+        savedCategory = upsertCategoryRow(response.data?.data)
         notify('分类修改成功')
       } else {
-        await createClassificationCategory(payload)
+        const response = await createClassificationCategory(payload)
+        savedCategory = upsertCategoryRow(response.data?.data)
         notify('分类创建成功')
       }
+      if (savedCategory) revealCategory(savedCategory)
     } else if (classificationModalKind.value === 'tag') {
       const payload = {
         name: classificationForm.name,
@@ -1681,6 +1856,11 @@ async function submitClassificationForm() {
     }
     classificationModalOpen.value = false
     await loadClassificationOverview()
+    if (classificationModalKind.value === 'category') {
+      const categoryId = normalizeId(editingClassificationId.value) || selectedCategory.value
+      const category = categoryRows.value.find((row) => row.id === categoryId)
+      if (category) revealCategory(category)
+    }
   } catch (error) {
     if (error.response?.status === 401) {
       classificationModalOpen.value = false
@@ -1790,7 +1970,7 @@ async function submitQuestion() {
     subject: questionForm.subject || null,
     knowledgePoint: questionForm.knowledgePoint || null,
     status: questionForm.status,
-    categoryId: questionForm.categoryId,
+    categoryId: normalizeNullableId(questionForm.categoryId),
     sourceType: questionForm.sourceType || null,
     sourceResourceId: questionForm.sourceResourceId || null,
     sourceResourceName: questionForm.sourceResourceName || null,
@@ -1945,7 +2125,7 @@ function normalizeImportedQuestion(item) {
     subject: item.subject || null,
     knowledgePoint: item.knowledgePoint || item.knowledge || null,
     status: statusMap[item.status] || item.status || 'DRAFT',
-    categoryId: item.categoryId || null,
+    categoryId: normalizeNullableId(item.categoryId),
   }
 }
 

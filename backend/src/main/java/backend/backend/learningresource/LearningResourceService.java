@@ -40,7 +40,9 @@ public class LearningResourceService {
 
     private static final Set<String> ALLOWED_EXTENSIONS = Set.of(
             ".pdf", ".doc", ".docx", ".ppt", ".pptx", ".xls", ".xlsx", ".txt", ".md",
-            ".png", ".jpg", ".jpeg", ".webp", ".gif", ".mp4", ".mp3", ".wav");
+            ".png", ".jpg", ".jpeg", ".webp", ".gif",
+            ".mp4", ".webm", ".ogg", ".mov", ".m4v",
+            ".mp3", ".wav", ".m4a", ".aac", ".flac");
     private static final TypeReference<List<AnnotationPayload>> ANNOTATION_LIST_TYPE = new TypeReference<>() {
     };
 
@@ -215,12 +217,16 @@ public class LearningResourceService {
         questionRequest.setContent(truncateText(title, 120) + "\n" + imageSource);
         questionRequest.setQuestionType(QuestionType.SHORT_ANSWER);
         questionRequest.setOptions(List.of());
-        questionRequest.setCorrectAnswer("待补充");
-        questionRequest.setAnalysis("由学习资料图片保存生成，请人工补充答案解析。");
+        questionRequest.setCorrectAnswer(
+                request.correctAnswer() == null || request.correctAnswer().isBlank()
+                        ? "待补充"
+                        : request.correctAnswer().trim());
+        questionRequest.setAnalysis("由学习资料截图保存生成。");
         questionRequest.setDifficulty(3);
         questionRequest.setSubject("学习资料");
         questionRequest.setKnowledgePoint(truncateText(resource.getName(), 80));
         questionRequest.setStatus(request.status() == null ? QuestionStatus.DRAFT : request.status());
+        questionRequest.setCategoryId(request.categoryId());
         questionRequest.setSourceType("RESOURCE_IMAGE_CAPTURE");
         questionRequest.setSourceResourceId(resource.getId());
         questionRequest.setSourceResourceName(resource.getName());
@@ -419,8 +425,8 @@ public class LearningResourceService {
         return switch (extension) {
             case ".pdf", ".doc", ".docx", ".ppt", ".pptx", ".xls", ".xlsx", ".txt", ".md" -> "文档";
             case ".png", ".jpg", ".jpeg", ".webp", ".gif" -> "图片";
-            case ".mp4" -> "视频";
-            case ".mp3", ".wav" -> "音频";
+            case ".mp4", ".webm", ".ogg", ".mov", ".m4v" -> "视频";
+            case ".mp3", ".wav", ".m4a", ".aac", ".flac" -> "音频";
             default -> "其他";
         };
     }

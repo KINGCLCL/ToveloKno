@@ -27,7 +27,7 @@
 		<url/>
 	</scm>
 	<properties>
-		<java.version>21</java.version>
+		<java.version>25</java.version>
 		<maven.compiler.source>${java.version}</maven.compiler.source>
 		<maven.compiler.target>${java.version}</maven.compiler.target>
 		<!-- Keep Java source files and resource files in UTF-8 to avoid Chinese text garbling. -->
@@ -122,7 +122,7 @@
 						<configuration>
 							<rules>
 								<requireJavaVersion>
-									<version>[21,)</version>
+									<version>[25,)</version>
 								</requireJavaVersion>
 							</rules>
 							<fail>true</fail>

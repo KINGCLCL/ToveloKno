@@ -22,3 +22,9 @@ logs/
 # OS
 .DS_Store
 Thumbs.db
+# Runtime uploads and local browser profiles
+backend/uploads/
+.codex-run/
+output/project-report/edge-profile*/
+output/docx-render/
+

@@ -1,0 +1,12 @@
+﻿<!doctype html><meta charset="utf-8"><title>login helper</title>
+<script>
+(async () => {
+  const res = await fetch('http://127.0.0.1:8080/api/users/login', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({username:'reportdemo', password:'reportdemo123'})
+  });
+  const data = await res.json();
+  localStorage.setItem('tovelokno_token', data.data.token);
+  location.href = 'http://127.0.0.1:5173/';
+})();
+</script>

@@ -17,18 +17,45 @@ public class DatabaseMigrationConfig {
     @Bean
     public ApplicationRunner ensureUserProfileColumns(JdbcTemplate jdbcTemplate) {
         return args -> {
+            ensureDefaultAdminRole(jdbcTemplate);
             addColumnIfMissing(jdbcTemplate, "user", "nickname", "VARCHAR(80)");
             addColumnIfMissing(jdbcTemplate, "user", "bio", "VARCHAR(500)");
             addColumnIfMissing(jdbcTemplate, "user", "profile_background", "VARCHAR(255)");
+            addColumnIfMissing(jdbcTemplate, "user", "profile_signature", "VARCHAR(160)");
+            addColumnIfMissing(jdbcTemplate, "user", "profile_cover_text", "VARCHAR(160)");
+            addColumnIfMissing(jdbcTemplate, "user", "profile_age", "VARCHAR(20)");
+            addColumnIfMissing(jdbcTemplate, "user", "profile_occupation", "VARCHAR(80)");
+            addColumnIfMissing(jdbcTemplate, "user", "profile_phone", "VARCHAR(40)");
+            addColumnIfMissing(jdbcTemplate, "user", "profile_qq", "VARCHAR(40)");
             createLearningResourceTableIfMissing(jdbcTemplate);
             createHomeBannerTableIfMissing(jdbcTemplate);
             addQuestionCoreColumns(jdbcTemplate);
             addQuestionSoftDeleteColumns(jdbcTemplate);
             addQuestionSourceColumns(jdbcTemplate);
+            addCategoryRelationColumns(jdbcTemplate);
+            assignLegacyCategoriesToAdmin(jdbcTemplate);
             addStudyPlanTargetColumns(jdbcTemplate);
             createQuestionBankInteractionTablesIfMissing(jdbcTemplate);
+            createResourceShareTablesIfMissing(jdbcTemplate);
+            createStudyForumTablesIfMissing(jdbcTemplate);
             addAnswerRecordColumns(jdbcTemplate);
         };
+    }
+
+    private void ensureDefaultAdminRole(JdbcTemplate jdbcTemplate) {
+        jdbcTemplate.update("""
+                INSERT INTO user_role (user_id, role_id)
+                SELECT user.id, role.id
+                FROM user
+                JOIN role ON role.role_name = 'ADMIN'
+                WHERE user.username = 'ADMIN'
+                  AND NOT EXISTS (
+                      SELECT 1
+                      FROM user_role
+                      WHERE user_role.user_id = user.id
+                        AND user_role.role_id = role.id
+                  )
+                """);
     }
 
     private void addColumnIfMissing(JdbcTemplate jdbcTemplate, String tableName, String columnName, String definition) {
@@ -55,6 +82,22 @@ public class DatabaseMigrationConfig {
         addColumnIfMissing(jdbcTemplate, "question", "source_resource_name", "VARCHAR(180) NULL");
         addColumnIfMissing(jdbcTemplate, "question", "source_page", "INT NULL");
         addColumnIfMissing(jdbcTemplate, "question", "source_excerpt", "TEXT NULL");
+    }
+
+    private void addCategoryRelationColumns(JdbcTemplate jdbcTemplate) {
+        addColumnIfMissing(jdbcTemplate, "category", "active", "BOOLEAN NOT NULL DEFAULT TRUE");
+        addColumnIfMissing(jdbcTemplate, "category", "sort_order", "INT NOT NULL DEFAULT 0");
+        addColumnIfMissing(jdbcTemplate, "tag", "updated_at", "DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
+    }
+
+    private void assignLegacyCategoriesToAdmin(JdbcTemplate jdbcTemplate) {
+        Long adminId = jdbcTemplate.query("""
+                SELECT id FROM user WHERE username = 'ADMIN' ORDER BY id LIMIT 1
+                """, resultSet -> resultSet.next() ? resultSet.getLong("id") : null);
+        if (adminId != null) {
+            jdbcTemplate.update("UPDATE category SET created_by = ? WHERE created_by IS NULL", adminId);
+            jdbcTemplate.update("UPDATE tag SET created_by = ? WHERE created_by IS NULL", adminId);
+        }
     }
 
     private void addQuestionCoreColumns(JdbcTemplate jdbcTemplate) {
@@ -164,6 +207,93 @@ public class DatabaseMigrationConfig {
                     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
                     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                     UNIQUE KEY uk_question_bank_setting_user (user_id)
+                )
+                """);
+    }
+
+    private void createResourceShareTablesIfMissing(JdbcTemplate jdbcTemplate) {
+        jdbcTemplate.execute("""
+                CREATE TABLE IF NOT EXISTS shared_resource (
+                    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+                    owner_id BIGINT NOT NULL,
+                    title VARCHAR(120) NOT NULL,
+                    category VARCHAR(40) NOT NULL,
+                    kind VARCHAR(40) NOT NULL,
+                    description VARCHAR(800),
+                    tags VARCHAR(300),
+                    link_url VARCHAR(500),
+                    file_url VARCHAR(500),
+                    cover_url VARCHAR(500),
+                    original_filename VARCHAR(260),
+                    file_size BIGINT,
+                    view_count INT NOT NULL DEFAULT 0,
+                    like_count INT NOT NULL DEFAULT 0,
+                    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    KEY idx_shared_resource_owner (owner_id),
+                    KEY idx_shared_resource_category (category, updated_at)
+                )
+                """);
+        jdbcTemplate.execute("""
+                CREATE TABLE IF NOT EXISTS shared_resource_favorite (
+                    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+                    user_id BIGINT NOT NULL,
+                    resource_id BIGINT NOT NULL,
+                    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE KEY uk_shared_resource_favorite (user_id, resource_id),
+                    KEY idx_shared_resource_favorite_user (user_id)
+                )
+                """);
+    }
+
+    private void createStudyForumTablesIfMissing(JdbcTemplate jdbcTemplate) {
+        jdbcTemplate.execute("""
+                CREATE TABLE IF NOT EXISTS forum_thread (
+                    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+                    user_id BIGINT NOT NULL,
+                    board_id VARCHAR(40) NOT NULL,
+                    title VARCHAR(120) NOT NULL,
+                    content TEXT NOT NULL,
+                    tags VARCHAR(300),
+                    pinned TINYINT(1) NOT NULL DEFAULT 0,
+                    view_count INT NOT NULL DEFAULT 0,
+                    like_count INT NOT NULL DEFAULT 0,
+                    reply_count INT NOT NULL DEFAULT 0,
+                    last_reply_user_id BIGINT,
+                    last_replied_at DATETIME,
+                    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    KEY idx_forum_thread_board (board_id, last_replied_at),
+                    KEY idx_forum_thread_user (user_id)
+                )
+                """);
+        jdbcTemplate.execute("""
+                CREATE TABLE IF NOT EXISTS forum_reply (
+                    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+                    thread_id BIGINT NOT NULL,
+                    user_id BIGINT NOT NULL,
+                    content TEXT NOT NULL,
+                    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    KEY idx_forum_reply_thread (thread_id, created_at)
+                )
+                """);
+        jdbcTemplate.execute("""
+                CREATE TABLE IF NOT EXISTS forum_thread_favorite (
+                    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+                    user_id BIGINT NOT NULL,
+                    thread_id BIGINT NOT NULL,
+                    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE KEY uk_forum_thread_favorite (user_id, thread_id),
+                    KEY idx_forum_thread_favorite_user (user_id)
+                )
+                """);
+        jdbcTemplate.execute("""
+                CREATE TABLE IF NOT EXISTS forum_thread_like (
+                    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+                    user_id BIGINT NOT NULL,
+                    thread_id BIGINT NOT NULL,
+                    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE KEY uk_forum_thread_like (user_id, thread_id)
                 )
                 """);
     }
